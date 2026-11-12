@@ -336,7 +336,7 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
   function blankJob(){
     return {
       job:{customer:'',address:'',measuredBy:'',date:today(),county:'',zone:'',code:'2021',ci:'0',lat:'',lon:''},
-      energyStar:'no', esVer:'3.2',
+      energyStar:'no', esVer:'3.2', jobId:Math.random().toString(36).slice(2,10), startedLogged:false,
       height:9, gap:15, notes:'', chips:[],
       lines:[
         {id:nid(),area:'Exterior walls',r:'R15',type:'ext',count:'',h:''}
@@ -360,6 +360,25 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
   const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{maximumFractionDigits:2});
   const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   const save = () => store.set('fm-draft', S);
+
+  /* ---------- usage tracking ----------
+     Paste your Google Apps Script web app URL between the quotes to turn on tracking.
+     Leave it empty to turn tracking off. */
+  const ANALYTICS_URL = 'https://script.google.com/macros/s/AKfycbz_kxbspJGxhoiGd7HGL9Gd7gstD-hBT-P4gNq6cVlnQNJ27W3diW6BT2FL59eA3ZxJ/exec';
+  function track(event, extra){
+    if (!ANALYTICS_URL) return;
+    const j = S.job;
+    const total = S.lines.reduce((a,l)=>a+lineSqft(l).total,0) + S.blocks.reduce((a,b)=>a+blockSqft(b),0);
+    const flags = S.lines.filter(l=>num(l.count)).filter(l=>['warn','bad'].includes(check(l).cls)).length;
+    const payload = Object.assign({
+      event, jobId:S.jobId, measuredBy:j.measuredBy, customer:j.customer, planName:j.planName||'', siteNumber:j.siteNumber||'',
+      address:j.address, county:j.county, zone:j.zone, energyStar:S.energyStar==='yes' ? 'v'+S.esVer : 'no',
+      totalSqft:Math.round(total*100)/100, areas:S.lines.length, codeFlags:flags, sentAnyway:'', sentTo:'', clientTime:new Date().toISOString()
+    }, extra || {});
+    try {
+      fetch(ANALYTICS_URL, {method:'POST', mode:'no-cors', keepalive:true, headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(payload)}).catch(()=>{});
+    } catch(e){}
+  }
 
   function lineSqft(l){
     const h = l.h !== '' && l.h != null ? num(l.h) : num(S.height);
@@ -497,6 +516,8 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
       if (el) el.querySelector('[data-out]').textContent = `${fmt(num(b.qty||1))} × ${fmt(num(b.w))}″ × ${fmt(num(b.h))}′ = ${fmt(sq)} sq ft`;
     });
     total += blockTotal;
+    if (!S.jobId) S.jobId = Math.random().toString(36).slice(2,10);
+    if (!S.startedLogged && S.lines.some(l => num(l.count) > 0)){ S.startedLogged = true; track('started'); }
 
     const rows = Object.entries(byR).sort((a,b)=>num(a[0].slice(1))-num(b[0].slice(1)))
       .map(([r,v])=>`<tr><td>${r}</td><td class="num">${fmt(v.n)}</td><td class="num">${fmt(v.sq)}</td></tr>`);
@@ -662,7 +683,7 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
     let bypass = false;
     const closeModal = () => { $('codeModal').hidden = true; $('mailBtn').focus(); };
     $('mailBtn').addEventListener('click', e=>{
-      if (bypass){ bypass = false; return; }
+      if (bypass){ bypass = false; track('emailed', {sentAnyway:'yes', sentTo:mailTo}); return; }
       if ($('mailBtn').getAttribute('aria-disabled') === 'true'){ e.preventDefault(); return; }
       if (!S.lines.length){ e.preventDefault(); toast('Add at least one area with a count.'); return; }
       const missing = S.lines.filter(l => !(num(l.count) > 0));
@@ -675,7 +696,7 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
         return;
       }
       const flagged = S.lines.filter(l=>num(l.count)).map(l=>({l, k:check(l)})).filter(x=>x.k.cls==='warn' || x.k.cls==='bad');
-      if (!flagged.length) return;
+      if (!flagged.length){ track('emailed', {sentTo:mailTo}); return; }
       e.preventDefault();
       $('cmIntro').textContent = `These areas don’t meet the Zone ${S.job.zone} minimum for ${effective().label} in ${S.job.county}:`;
       $('cmList').innerHTML = flagged.map(x=>`<li><strong>${esc(x.l.area || 'Unnamed area')}</strong> (${esc(x.l.r)}, ${fmt(num(x.l.count))} gaps): ${esc(x.k.text)}</li>`).join('');
