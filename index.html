@@ -55,7 +55,10 @@ input[type=number]{font-variant-numeric:tabular-nums}
 .grid > *,.row > *,.gapcard > *{min-width:0}
 
 /* The one bold element: the per-gap readout */
-.gapcard{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
+.gapcard{display:grid;grid-template-columns:1fr 1.4fr 1fr;gap:12px;align-items:end}
+.row.invalid .c-count input{border:2px solid var(--bad)}
+.row.invalid .c-count::after{content:"Count required";display:block;color:var(--bad);font-size:.82rem;font-weight:600;margin-top:2px}
+.req-star{color:var(--bad)}
 .formula{grid-column:1/-1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--pink-soft);border-left:6px solid var(--pink);border-radius:6px;padding:12px 14px;margin-top:4px}
 .formula .big{font-family:"Barlow Condensed",Barlow,sans-serif;font-weight:700;font-size:2.2rem;line-height:1;font-variant-numeric:tabular-nums}
 .formula .math{color:var(--muted);font-variant-numeric:tabular-nums}
@@ -139,6 +142,7 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
   .row .c-w,.row .c-bh,.row .c-q{grid-column:span 2}
   .row .out{white-space:normal;padding:2px 0}
   .gapcard{grid-template-columns:1fr 1fr}
+  .gapcard > div:nth-child(2){grid-column:span 1}
   .gapcard .preset{grid-column:1/-1;display:flex}
   .gapcard .preset button{flex:1}
   .formula .big{font-size:1.9rem}
@@ -229,11 +233,13 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
     <div class="head"><h2 id="h-wall">Wall setup</h2></div>
     <div class="gapcard">
       <div><label for="height">Wall height (ft)</label><input id="height" type="number" inputmode="decimal" min="1" step="0.25"></div>
-      <div><label for="gap">Gap width (in)</label><input id="gap" type="number" inputmode="decimal" min="1" step="0.25"></div>
-      <div class="preset" role="group" aria-label="Stud spacing presets">
-        <button type="button" class="chip" data-gap="15">16″ o.c.</button>
-        <button type="button" class="chip" data-gap="23">24″ o.c.</button>
-      </div>
+      <div><label for="gapSel">Gap width</label>
+        <select id="gapSel">
+          <option value="15">15″ (16″ o.c.) (standard)</option>
+          <option value="23">23″ (24″ o.c.) (standard)</option>
+          <option value="custom">Custom width</option>
+        </select></div>
+      <div id="gapCustomWrap"><label for="gap">Custom width (in)</label><input id="gap" type="number" inputmode="decimal" min="1" step="0.25"></div>
       <div class="formula">
         <span class="big" id="perGap">11.25</span>
         <span><strong>sq ft per gap</strong><br><span class="math" id="perGapMath"></span></span>
@@ -333,9 +339,7 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
       energyStar:'no', esVer:'3.2',
       height:9, gap:15, notes:'', chips:[],
       lines:[
-        {id:nid(),area:'Exterior walls',r:'R15',type:'ext',count:'',h:''},
-        {id:nid(),area:'2x6 walls',r:'R19',type:'ext',count:'',h:''},
-        {id:nid(),area:'Garage door interior walls',r:'R13',type:'garage',count:'',h:''}
+        {id:nid(),area:'Exterior walls',r:'R15',type:'ext',count:'',h:''}
       ],
       blocks:[]
     };
@@ -397,12 +401,31 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
     return inside;
   }
   function countyAt(lat, lon){ return COUNTIES.find(c => c[3].some(r => inRing(lon, lat, r))); }
+  function gapLabel(plain){
+    const g = num(S.gap), q = plain ? '"' : '″';
+    if (g === 15) return `15${q} (16${q} o.c.) (standard)`;
+    if (g === 23) return `23${q} (24${q} o.c.) (standard)`;
+    return `${fmt(g)}${q} (custom)`;
+  }
   function renderGps(msg){
     const j = S.job;
     if (msg){ $('gpsStatus').textContent = msg; return; }
     if (j.lat && j.lon){
-      $('gpsStatus').innerHTML = `Location saved: ${(+j.lat).toFixed(5)}, ${(+j.lon).toFixed(5)}. <a href="https://www.google.com/maps?q=${j.lat},${j.lon}" target="_blank" rel="noopener">View on map</a> <button type="button" class="linkbtn" id="gpsClear">Clear</button>`;
+      $('gpsStatus').innerHTML = `Address pulled from your location. <a href="https://www.google.com/maps?q=${j.lat},${j.lon}" target="_blank" rel="noopener">View on map</a> <button type="button" class="linkbtn" id="gpsClear">Clear</button>`;
     } else $('gpsStatus').textContent = '';
+  }
+  async function reverseGeocode(lat, lon){
+    const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), 9000);
+    try {
+      const r = await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&addressdetails=1&zoom=18&lat=${lat}&lon=${lon}`, {signal:ctl.signal, headers:{'Accept-Language':'en'}});
+      if (!r.ok) return null;
+      const d = await r.json(), a = d.address || {};
+      const street = [a.house_number, a.road].filter(Boolean).join(' ');
+      const city = a.city || a.town || a.village || a.hamlet || a.suburb || '';
+      const st = (a['ISO3166-2-lvl4'] || '').replace('US-', '') || a.state || '';
+      const line = [street, city, [st, a.postcode].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+      return line || d.display_name || null;
+    } catch(e){ return null; } finally { clearTimeout(t); }
   }
   function renderEs(){
     document.querySelectorAll('[data-es]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.es === S.energyStar)));
@@ -420,10 +443,10 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
 
   function renderLines(){
     $('countRows').innerHTML = S.lines.map(l=>`<div class="row count" data-id="${l.id}">
-      <div class="c-area"><label>Area</label><input data-f="area" value="${esc(l.area)}" placeholder="e.g. Bonus room walls"></div>
+      <div class="c-area"><label>Area</label><input data-f="area" value="${esc(l.area)}" placeholder="ex: chase, interior walls, etc."></div>
       <div class="c-type"><label>Type</label><select data-f="type">${Object.entries(TYPES).map(([k,v])=>`<option value="${k}" ${k===l.type?'selected':''}>${v}</option>`).join('')}</select></div>
       <div class="c-r"><label>R-value</label><select data-f="r">${R_OPTIONS.map(r=>`<option ${r===l.r?'selected':''}>${r}</option>`).join('')}</select></div>
-      <div class="c-count"><label>Count</label><input data-f="count" type="number" inputmode="numeric" min="0" step="1" value="${esc(l.count)}" placeholder="0"></div>
+      <div class="c-count"><label>Count <span class="req-star" aria-hidden="true">*</span></label><input data-f="count" type="number" inputmode="numeric" required aria-required="true" min="1" step="1" value="${esc(l.count)}" placeholder="0"></div>
       <div class="c-h"><label>Height</label><input data-f="h" type="number" inputmode="decimal" min="0" step="0.25" value="${esc(l.h)}" placeholder="${esc(S.height)}"></div>
       <button type="button" class="x c-x" aria-label="Remove area" data-rm="line">×</button>
       <div class="meta"><span class="out" data-out></span><span data-tag></span></div>
@@ -446,8 +469,7 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
   function update(){
     const per = num(S.height) * num(S.gap) / 12;
     $('perGap').textContent = fmt(per);
-    $('perGapMath').textContent = `${fmt(num(S.height))} ft tall × ${fmt(num(S.gap))} in (${fmt(num(S.gap)/12)} ft) wide`;
-    document.querySelectorAll('[data-gap]').forEach(b => b.setAttribute('aria-pressed', String(num(b.dataset.gap) === num(S.gap))));
+    $('perGapMath').textContent = `${fmt(num(S.height))} ft tall × ${gapLabel(false)} (${fmt(num(S.gap)/12)} ft) wide`;
 
     // requirement box
     const eff = effective(), opts = CODE[eff.table][S.job.zone];
@@ -462,6 +484,7 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
       total += c.total; gaps += num(l.count);
       if (num(l.count)) { byR[l.r] = byR[l.r] || {n:0, sq:0}; byR[l.r].n += num(l.count); byR[l.r].sq += c.total; }
       if (el){
+        if (num(l.count) > 0) el.classList.remove('invalid');
         el.querySelector('[data-out]').textContent = `${fmt(num(l.count))} × ${fmt(c.per)} sq ft = ${fmt(c.total)} sq ft`;
         const k = check(l);
         el.querySelector('[data-tag]').innerHTML = `<span class="tag ${k.cls}">${esc(k.text)}</span>`;
@@ -499,12 +522,12 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
     L.push(`Customer: ${j.customer || '-'}`);
     L.push(`Address: ${j.address || '-'}`);
     L.push(`Plan: ${j.planName || '-'}    Site #: ${j.siteNumber || '-'}`);
-    if (j.lat && j.lon) L.push(`GPS: ${(+j.lat).toFixed(5)}, ${(+j.lon).toFixed(5)}  https://www.google.com/maps?q=${j.lat},${j.lon}`);
+    if (j.lat && j.lon) L.push(`Map: https://www.google.com/maps?q=${j.lat},${j.lon}`);
     L.push(`Measured by: ${j.measuredBy || '-'}    Date: ${j.date || '-'}`);
     L.push(`County: ${j.county || '-'}    Climate zone: ${j.zone || '-'}    Checked against: ${effective().label}${num(j.ci) ? `    ci: R${j.ci}` : ''}`);
     L.push(`ENERGY STAR: ${S.energyStar === 'yes' ? `Yes (v${S.esVer}) - Grade I install, rater pre-drywall inspection` : 'No'}`);
     L.push('');
-    L.push(`Wall height ${fmt(num(S.height))} ft, gap ${fmt(num(S.gap))} in = ${fmt(num(S.height)*num(S.gap)/12)} sq ft per gap`);
+    L.push(`Wall height ${fmt(num(S.height))} ft, gap ${gapLabel(true)} = ${fmt(num(S.height)*num(S.gap)/12)} sq ft per gap`);
     L.push('');
     L.push('FIELD COUNTS');
     S.lines.filter(l=>num(l.count)).forEach(l=>{
@@ -539,17 +562,21 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
     $('gpsBtn').addEventListener('click', ()=>{
       if (!('geolocation' in navigator)){ renderGps('Location isn’t available on this device. Type the address instead.'); return; }
       $('gpsBtn').disabled = true; renderGps('Finding your location…');
-      navigator.geolocation.getCurrentPosition(pos=>{
-        $('gpsBtn').disabled = false;
+      navigator.geolocation.getCurrentPosition(async pos=>{
         const {latitude:lat, longitude:lon, accuracy} = pos.coords;
         S.job.lat = lat.toFixed(6); S.job.lon = lon.toFixed(6);
         const c = countyAt(lat, lon);
         setCounty(c ? countyKey(c) : '');
-        if (!S.job.address){ S.job.address = `Near ${lat.toFixed(5)}, ${lon.toFixed(5)}`; $('address').value = S.job.address; }
-        renderGps();
-        $('gpsStatus').insertAdjacentHTML('beforeend', c
-          ? `<br>Detected ${esc(countyKey(c))}, climate zone ${c[2]}A${accuracy > 500 ? ' (low accuracy, double-check)' : ''}.`
-          : '<br>This spot is outside NC and SC, so code checks are off for this job.');
+        update();
+        renderGps('Looking up the closest address…');
+        const addr = await reverseGeocode(lat, lon);
+        $('gpsBtn').disabled = false;
+        let msg;
+        if (addr){ S.job.address = addr; $('address').value = addr; msg = 'Closest address filled in. Double-check the house number.'; }
+        else { S.job.lat = S.job.lon = ''; msg = 'Couldn’t look up a street address. Type the address in.'; }
+        msg += c ? ` ${countyKey(c)}, climate zone ${c[2]}A.` : ' This spot is outside NC and SC, so code checks are off for this job.';
+        if (accuracy > 100) msg += ' Your location fix is rough, so confirm the address.';
+        renderGps(msg);
         update();
       }, err=>{
         $('gpsBtn').disabled = false;
@@ -566,9 +593,18 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
     $('mailTo').addEventListener('input', e=>{ mailTo = e.target.value; store.set('fm-mailto', mailTo); update(); });
     $('toEmail').addEventListener('click', ()=>{ $('mailTo').scrollIntoView({block:'center'}); $('mailTo').focus({preventScroll:true}); });
     $('height').value = S.height; $('gap').value = S.gap;
+    const isPreset = g => num(g) === 15 || num(g) === 23;
+    $('gapSel').value = isPreset(S.gap) ? String(num(S.gap)) : 'custom';
+    $('gapCustomWrap').hidden = $('gapSel').value !== 'custom';
+    $('gapSel').addEventListener('change', e=>{
+      const v = e.target.value;
+      $('gapCustomWrap').hidden = v !== 'custom';
+      if (v === 'custom'){ $('gap').focus(); }
+      else { S.gap = v; $('gap').value = v; }
+      update();
+    });
     $('height').addEventListener('input', e=>{ S.height = e.target.value; document.querySelectorAll('[data-f="h"]').forEach(i=>{ if(i.closest('.count')) i.placeholder = S.height; }); update(); });
     $('gap').addEventListener('input', e=>{ S.gap = e.target.value; update(); });
-    document.querySelectorAll('[data-gap]').forEach(b=>b.addEventListener('click', ()=>{ S.gap = b.dataset.gap; $('gap').value = S.gap; update(); }));
     $('notes').value = S.notes;
     $('notes').addEventListener('input', e=>{ S.notes = e.target.value; update(); });
 
@@ -628,6 +664,16 @@ a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
     $('mailBtn').addEventListener('click', e=>{
       if (bypass){ bypass = false; return; }
       if ($('mailBtn').getAttribute('aria-disabled') === 'true'){ e.preventDefault(); return; }
+      if (!S.lines.length){ e.preventDefault(); toast('Add at least one area with a count.'); return; }
+      const missing = S.lines.filter(l => !(num(l.count) > 0));
+      document.querySelectorAll('#countRows .row').forEach(r => r.classList.toggle('invalid', missing.some(l => l.id === r.dataset.id)));
+      if (missing.length){
+        e.preventDefault();
+        const r = document.querySelector('#countRows .row.invalid');
+        r.scrollIntoView({block:'center'}); r.querySelector('[data-f="count"]').focus({preventScroll:true});
+        toast(missing.length > 1 ? `Enter a count for ${missing.length} areas, or remove them.` : 'Enter a count for this area, or remove it.');
+        return;
+      }
       const flagged = S.lines.filter(l=>num(l.count)).map(l=>({l, k:check(l)})).filter(x=>x.k.cls==='warn' || x.k.cls==='bad');
       if (!flagged.length) return;
       e.preventDefault();
