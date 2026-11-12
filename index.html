@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Field Measure</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F3; --surface:#FFFFFF; --ink:#22262B; --muted:#5E6872; --line:#D3D9DE;
+  --pink:#E2678C; --pink-soft:#FBE3EA; --steel:#2F5670; --steel-soft:#E1EAF0;
+  --warn:#8A6100; --warn-bg:#FFF3CC; --bad:#A3271F; --bad-bg:#FBE1DE; --ok:#22693F; --ok-bg:#DDF1E4;
+  --field:#F7F9FA;
+  color-scheme:light;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#16191C; --surface:#1F2327; --ink:#E8ECEF; --muted:#9AA5AE; --line:#343A40;
+    --pink:#F08AA8; --pink-soft:#3A2129; --steel:#8DB6D2; --steel-soft:#1F2D37;
+    --warn:#F2C94C; --warn-bg:#3A3015; --bad:#F29A92; --bad-bg:#3D1F1C; --ok:#86D4A2; --ok-bg:#183326;
+    --field:#191C20; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#16191C; --surface:#1F2327; --ink:#E8ECEF; --muted:#9AA5AE; --line:#343A40;
+  --pink:#F08AA8; --pink-soft:#3A2129; --steel:#8DB6D2; --steel-soft:#1F2D37;
+  --warn:#F2C94C; --warn-bg:#3A3015; --bad:#F29A92; --bad-bg:#3D1F1C; --ok:#86D4A2; --ok-bg:#183326;
+  --field:#191C20; color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 Barlow,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:780px;margin:0 auto;padding:20px 16px 120px}
+h1,h2{font-family:"Barlow Condensed","Arial Narrow",Barlow,sans-serif;font-weight:700;margin:0;letter-spacing:.01em}
+h1{font-size:2.1rem;line-height:1.1}
+h2{font-size:1.35rem;line-height:1.2}
+.lede{color:var(--muted);margin:6px 0 0;max-width:60ch}
+header{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;margin-bottom:18px}
+
+section{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:18px 16px;margin-top:14px}
+section > .head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.hint{color:var(--muted);font-size:.9rem;margin:0}
+
+label{display:block;font-size:.88rem;font-weight:600;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;font:inherit;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:6px;padding:10px 10px;min-height:44px}
+textarea{min-height:110px;resize:vertical}
+input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:3px solid var(--steel);outline-offset:1px}
+input[type=number]{font-variant-numeric:tabular-nums}
+.grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(170px,1fr))}
+.grid > *,.row > *,.gapcard > *{min-width:0}
+
+/* The one bold element: the per-gap readout */
+.gapcard{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;align-items:end}
+.formula{grid-column:1/-1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;background:var(--pink-soft);border-left:6px solid var(--pink);border-radius:6px;padding:12px 14px;margin-top:4px}
+.formula .big{font-family:"Barlow Condensed",Barlow,sans-serif;font-weight:700;font-size:2.2rem;line-height:1;font-variant-numeric:tabular-nums}
+.formula .math{color:var(--muted);font-variant-numeric:tabular-nums}
+.preset{display:flex;gap:6px;flex-wrap:wrap}
+
+button{font:inherit;font-weight:600;cursor:pointer;border-radius:6px;min-height:44px;padding:8px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink)}
+button.primary{background:var(--steel);border-color:var(--steel);color:var(--surface)}
+button.ghost{background:transparent}
+button.chip{min-height:36px;padding:4px 12px;border-radius:999px;font-weight:500;font-size:.92rem}
+button.chip[aria-pressed="true"]{background:var(--steel-soft);border-color:var(--steel);color:var(--steel)}
+button.x{min-height:40px;width:40px;padding:0;color:var(--muted);background:transparent;border-color:transparent;font-size:1.3rem;line-height:1}
+button.x:hover{color:var(--bad)}
+
+.rows{display:flex;flex-direction:column;gap:10px}
+.row{display:grid;gap:8px;align-items:end;padding:12px;border:1px solid var(--line);border-radius:8px;background:var(--field)}
+.row.count{grid-template-columns:2fr 1.1fr 1fr .9fr .9fr auto}
+.row.block{grid-template-columns:2fr 1fr 1fr .8fr auto}
+.row input,.row select{background:var(--surface)}
+.row .out{font-variant-numeric:tabular-nums;font-weight:700;padding:10px 0;white-space:nowrap}
+.row .meta{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:.88rem;color:var(--muted)}
+.tag{display:inline-block;border-radius:4px;padding:2px 8px;font-size:.84rem;font-weight:600}
+.tag.ok{background:var(--ok-bg);color:var(--ok)}
+.tag.warn{background:var(--warn-bg);color:var(--warn)}
+.tag.bad{background:var(--bad-bg);color:var(--bad)}
+.tag.na{background:var(--steel-soft);color:var(--steel)}
+.addbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+
+.req{margin-top:12px;border:1px dashed var(--line);border-radius:8px;padding:10px 12px;font-size:.93rem}
+.req strong{font-weight:700}
+
+table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+th,td{text-align:left;padding:8px 6px;border-bottom:1px solid var(--line)}
+th{font-size:.85rem;color:var(--muted);font-weight:600}
+td.num,th.num{text-align:right}
+tfoot td{font-weight:700;border-bottom:none}
+.scroll{overflow-x:auto}
+
+pre{white-space:pre-wrap;word-break:break-word;background:var(--field);border:1px solid var(--line);border-radius:8px;padding:14px;font:500 .9rem/1.5 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;margin:0;max-height:420px;overflow:auto}
+details summary{cursor:pointer;font-weight:600;color:var(--steel);min-height:32px}
+.addr{display:flex;gap:8px}
+.addr input{flex:1}
+.addr button{white-space:nowrap}
+.gps{margin:8px 0 0;font-size:.9rem;color:var(--muted);min-height:1.4em}
+.gps a{color:var(--steel)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;min-width:84px;background:var(--field)}
+.seg button+button{border-left:1px solid var(--line)}
+.seg button[aria-pressed="true"]{background:var(--steel);color:var(--surface)}
+.es-list{margin:12px 0 0;padding-left:20px}
+.es-list li{margin:4px 0}
+.mailrow{display:flex;gap:8px;flex-wrap:wrap;align-items:end}
+.mailrow > div{flex:1 1 240px}
+a.btn{display:inline-flex;align-items:center;justify-content:center;font-weight:600;min-height:44px;padding:8px 16px;border-radius:6px;text-decoration:none;background:var(--steel);color:var(--surface);border:1px solid var(--steel)}
+a.btn[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.linkbtn{background:none;border:0;min-height:32px;padding:0;color:var(--steel);text-decoration:underline;font-weight:500}
+
+.totalbar{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));z-index:20}
+.totalbar .in{max-width:780px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.totalbar .t{font-family:"Barlow Condensed",Barlow,sans-serif;font-weight:700;font-size:1.7rem;font-variant-numeric:tabular-nums;line-height:1}
+.totalbar .s{color:var(--muted);font-size:.85rem}
+.toast{position:fixed;left:50%;bottom:86px;transform:translateX(-50%);background:var(--ink);color:var(--surface);padding:8px 16px;border-radius:6px;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s;z-index:30}
+.toast.show{opacity:1}
+@media (prefers-reduced-motion:reduce){.toast{transition:none}}
+
+@media (max-width:640px){
+  .wrap{padding:14px 12px 110px}
+  h1{font-size:1.75rem}
+  h2{font-size:1.25rem}
+  header{align-items:flex-start}
+  section{padding:14px 12px;margin-top:12px}
+  section > .head{flex-direction:column;align-items:stretch;gap:4px}
+  section > .head .preset{display:flex}
+  section > .head .preset button{flex:1}
+  .grid{grid-template-columns:1fr 1fr;gap:10px}
+  .addr{flex-direction:column}
+  .addr button{width:100%}
+  .row.count,.row.block{grid-template-columns:repeat(6,minmax(0,1fr));padding:10px;gap:8px}
+  .row .c-area,.row .c-label{grid-column:1/6;grid-row:1}
+  .row .c-x{grid-column:6;grid-row:1;justify-self:end}
+  .row .c-type,.row .c-r,.row .c-count,.row .c-h{grid-column:span 3}
+  .row .c-w,.row .c-bh,.row .c-q{grid-column:span 2}
+  .row .out{white-space:normal;padding:2px 0}
+  .gapcard{grid-template-columns:1fr 1fr}
+  .gapcard .preset{grid-column:1/-1;display:flex}
+  .gapcard .preset button{flex:1}
+  .formula .big{font-size:1.9rem}
+  .seg{display:flex;width:100%}
+  .seg button{flex:1}
+  #esVerWrap{width:100%}
+  .addbar button{flex:1 1 auto}
+  .mailrow .btn{width:100%}
+  pre{font-size:.8rem;padding:10px}
+  th,td{padding:8px 4px}
+  .totalbar{padding:8px 12px calc(8px + env(safe-area-inset-bottom,0px))}
+  .totalbar .t{font-size:1.4rem}
+  .toast{bottom:76px;max-width:calc(100% - 24px);text-align:center}
+}
+@media (max-width:400px){
+  .grid{grid-template-columns:1fr}
+}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(20,24,28,.55);display:flex;align-items:center;justify-content:center;padding:16px}
+.modal[hidden]{display:none}
+.modal-card{background:var(--surface);color:var(--ink);border-radius:12px;border-top:6px solid var(--warn);padding:20px 18px;max-width:480px;width:100%;max-height:85vh;overflow:auto}
+.modal-card p{margin:10px 0}
+.modal-card ul{margin:8px 0;padding-left:20px}
+.modal-card li{margin:6px 0}
+.modal-actions{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap;margin-top:14px}
+@media (max-width:640px){.modal{align-items:flex-end;padding:0}.modal-card{border-radius:12px 12px 0 0;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}.modal-actions button{flex:1 1 140px}}
+@media print{
+  .modal{display:none !important}
+  .totalbar,.addbar,button,.toast,details{display:none !important}
+  body{background:#fff}
+  section{break-inside:avoid;border-color:#ccc}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div>
+      <h1>Field measure</h1>
+      <p class="lede">Count stud gaps on site, and this turns them into square footage and a quote request ready for the office.</p>
+    </div>
+    <button class="ghost" id="newJob" type="button">Start new job</button>
+  </header>
+
+  <section aria-labelledby="h-job">
+    <div class="head"><h2 id="h-job">Job details</h2></div>
+    <div class="grid">
+      <div><label for="customer">Customer</label><input id="customer" data-job="customer" autocomplete="off"></div>
+      <div><label for="measuredBy">Measured by</label><input id="measuredBy" data-job="measuredBy" autocomplete="off"></div>
+      <div><label for="date">Date</label><input id="date" type="date" data-job="date"></div>
+    </div>
+    <div style="margin-top:12px">
+      <label for="address">Site address</label>
+      <div class="addr">
+        <input id="address" data-job="address" autocomplete="street-address" placeholder="Type the address, or use your location">
+        <button type="button" id="gpsBtn">Use my location</button>
+      </div>
+      <p class="gps" id="gpsStatus" aria-live="polite"></p>
+    </div>
+    <div class="grid" style="margin-top:4px">
+      <div><label for="planName">Plan name</label><input id="planName" data-job="planName" autocomplete="off" placeholder="e.g. The Hampton"></div>
+      <div><label for="siteNumber">Site number</label><input id="siteNumber" data-job="siteNumber" autocomplete="off" placeholder="e.g. Lot 42"></div>
+    </div>
+    <div class="grid" style="margin-top:12px">
+      <div><label for="county">County</label><select id="county"></select></div>
+      <input type="hidden" id="zone">
+      <div><label for="code">Energy code</label>
+        <select id="code"><option value="2021">2021 IECC</option><option value="2018">2018 IECC</option></select></div>
+      <div><label for="ci">Continuous insulation (ci)</label>
+        <select id="ci"><option value="0">None</option><option value="5">R-5 ci</option><option value="10">R-10 ci</option><option value="15">R-15 ci</option></select></div>
+    </div>
+    <div class="req" id="reqBox" aria-live="polite"></div>
+  </section>
+
+  <section aria-labelledby="h-es">
+    <div class="head"><h2 id="h-es">ENERGY STAR</h2><p class="hint">Is this home going for ENERGY STAR certification?</p></div>
+    <div style="display:flex;gap:14px;flex-wrap:wrap;align-items:end">
+      <div class="seg" role="group" aria-label="ENERGY STAR home">
+        <button type="button" data-es="no">No</button>
+        <button type="button" data-es="yes">Yes</button>
+      </div>
+      <div id="esVerWrap" style="min-width:200px"><label for="esVer">Program version</label>
+        <select id="esVer"><option value="3.2">Version 3.2</option><option value="3.1">Version 3.1</option></select></div>
+    </div>
+    <ul class="es-list" id="esList"></ul>
+  </section>
+
+  <section aria-labelledby="h-wall">
+    <div class="head"><h2 id="h-wall">Wall setup</h2></div>
+    <div class="gapcard">
+      <div><label for="height">Wall height (ft)</label><input id="height" type="number" inputmode="decimal" min="1" step="0.25"></div>
+      <div><label for="gap">Gap width (in)</label><input id="gap" type="number" inputmode="decimal" min="1" step="0.25"></div>
+      <div class="preset" role="group" aria-label="Stud spacing presets">
+        <button type="button" class="chip" data-gap="15">16″ o.c.</button>
+        <button type="button" class="chip" data-gap="23">24″ o.c.</button>
+      </div>
+      <div class="formula">
+        <span class="big" id="perGap">11.25</span>
+        <span><strong>sq ft per gap</strong><br><span class="math" id="perGapMath"></span></span>
+      </div>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-counts">
+    <div class="head"><h2 id="h-counts">Field counts</h2><p class="hint">Leave height blank to use the wall height above.</p></div>
+    <div class="rows" id="countRows"></div>
+    <div class="addbar">
+      <button type="button" id="addLine">Add area</button>
+      <button type="button" class="ghost" data-quick="Exterior walls|R15|ext">+ Exterior walls</button>
+      <button type="button" class="ghost" data-quick="Garage door interior walls|R13|garage">+ Garage walls</button>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-blocks">
+    <div class="head"><h2 id="h-blocks">Blocked areas to fill</h2></div>
+    <div class="rows" id="blockRows"></div>
+    <div class="addbar"><button type="button" id="addBlock">Add blocked area</button></div>
+  </section>
+
+  <section aria-labelledby="h-notes">
+    <div class="head"><h2 id="h-notes">Site notes for installers</h2></div>
+    <div class="preset" id="noteChips" style="margin-bottom:10px"></div>
+    <label for="notes" class="hint" style="font-weight:400">Anything the crew should know before they roll up</label>
+    <textarea id="notes" placeholder="Gate code 4471. Owner's dog in back yard. Kitchen wall open, drywall goes up Friday."></textarea>
+  </section>
+
+  <section aria-labelledby="h-sum">
+    <div class="head"><h2 id="h-sum">Quote request</h2>
+      <div class="preset"><button type="button" id="print">Print</button></div>
+    </div>
+    <div class="scroll"><table>
+      <thead><tr><th>R-value</th><th class="num">Gaps / pieces</th><th class="num">Sq ft</th></tr></thead>
+      <tbody id="byR"></tbody>
+      <tfoot><tr><td>Total</td><td></td><td class="num" id="grand"></td></tr></tfoot>
+    </table></div>
+    <div class="mailrow" style="margin-top:16px">
+      <div><label for="mailTo">Send to</label><input id="mailTo" type="email" inputmode="email" autocomplete="email" multiple placeholder="office@yourcompany.com"></div>
+      <a class="btn" id="mailBtn" href="#" target="_blank" rel="noopener">Email quote request</a>
+    </div>
+    <p class="hint" style="margin:6px 0 0">Opens your email app with everything filled in. Separate several addresses with commas. <button type="button" class="linkbtn" id="copy">Copy text instead</button></p>
+    <p class="hint" style="margin:14px 0 6px">What the email will say</p>
+    <pre id="summary"></pre>
+  </section>
+</div>
+
+<div class="totalbar"><div class="in">
+  <div><div class="t" id="barTotal">0 sq ft</div><div class="s" id="barSub">No counts yet</div></div>
+  <button type="button" class="primary" id="toEmail">Email request</button>
+</div></div>
+<div class="modal" id="codeModal" hidden role="dialog" aria-modal="true" aria-labelledby="cmHead">
+  <div class="modal-card">
+    <h2 id="cmHead">Some selections don’t meet code</h2>
+    <p id="cmIntro"></p>
+    <ul id="cmList"></ul>
+    <p class="hint">If you send anyway, the code flags are included in the email so the office can review them.</p>
+    <div class="modal-actions">
+      <button type="button" id="cmBack">Go back and fix</button>
+      <button type="button" class="primary" id="cmSend">Send anyway</button>
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+(function(){
+  const R_OPTIONS = ['R11','R13','R15','R19','R21','R23','R30','R38'];
+  const TYPES = {ext:'Exterior wall', garage:'Garage wall', int:'Interior (sound)'};
+  const NOTE_CHIPS = ['Bring a ladder','Bring tall ladder (12 ft+)','Blocked areas to fill','Need power on site','Occupied home','Tight access / crawl','Netting required','Call before arrival'];
+
+  // Wood-frame wall requirements: each option is [cavity R, ci R]
+  const CODE = {
+    '2021':{ '1':[[13,0],[0,10]], '2':[[13,0],[0,10]], '3':[[20,0],[13,5],[0,15]], '4':[[20,0],[13,5],[0,15]],
+             '4C':[[20,5],[13,10],[0,15]], '5':[[20,5],[13,10],[0,15]], '6':[[20,5],[13,10],[0,15]],
+             '7':[[20,5],[13,10],[0,15]], '8':[[20,5],[13,10],[0,15]] },
+    '2018':{ '1':[[13,0]], '2':[[13,0]], '3':[[20,0],[13,5]], '4':[[20,0],[13,5]], '4C':[[20,0],[13,5]],
+             '5':[[20,0],[13,5]], '6':[[20,5],[13,10]], '7':[[20,5],[13,10]], '8':[[20,5],[13,10]] }
+  };
+  // NC + SC counties: [name, state, IECC climate zone, outer rings as flat [lon,lat,...]]
+  const COUNTIES = [["Alamance","NC","4",[[-79.259,36.137,-79.249,35.877,-79.319,35.844,-79.542,35.843,-79.542,35.9,-79.542,35.902,-79.532,36.241,-79.532,36.241,-79.532,36.249,-79.523,36.25,-79.365,36.246,-79.316,36.245,-79.257,36.244,-79.259,36.137]]],["Alexander","NC","4",[[-81.029,36.046,-81.005,35.958,-81.052,35.845,-81.065,35.824,-81.076,35.815,-81.079,35.803,-81.094,35.794,-81.109,35.777,-81.142,35.827,-81.334,35.796,-81.328,35.997,-81.191,36.037,-81.029,36.046]]],["Alleghany","NC","5",[[-81.353,36.575,-81.308,36.575,-81.062,36.567,-81.059,36.567,-80.946,36.563,-80.944,36.563,-80.902,36.562,-80.975,36.453,-80.967,36.402,-81.014,36.371,-81.095,36.44,-81.253,36.365,-81.353,36.575]]],["Anson","NC","3",[[-80.099,34.81,-80.32,34.814,-80.277,35.196,-80.174,35.148,-80.075,35.143,-79.999,35.085,-79.928,35.118,-79.876,35.038,-79.85,34.899,-79.928,34.807,-80.027,34.809,-80.043,34.809,-80.073,34.81,-80.077,34.81,-80.098,34.81,-80.099,34.81]]],["Ashe","NC","5",[[-81.678,36.588,-81.607,36.587,-81.521,36.581,-81.353,36.575,-81.353,36.575,-81.253,36.365,-81.354,36.356,-81.379,36.278,-81.477,36.24,-81.566,36.272,-81.721,36.388,-81.714,36.451,-81.715,36.453,-81.697,36.485,-81.696,36.492,-81.697,36.493,-81.697,36.496,-81.698,36.497,-81.7,36.498,-81.7,36.5,-81.7,36.501,-81.698,36.504,-81.697,36.505,-81.698,36.508,-81.698,36.508,-81.699,36.512,-81.7,36.513,-81.7,36.514,-81.701,36.515,-81.708,36.536,-81.7,36.54,-81.678,36.588]]],["Avery","NC","5",[[-81.982,35.912,-82.034,35.942,-82.081,36.106,-82.08,36.106,-82.027,36.13,-81.96,36.228,-81.933,36.265,-81.918,36.287,-81.909,36.216,-81.812,36.112,-81.736,36.067,-81.807,35.962,-81.9,36.0,-81.944,35.959,-81.963,35.942,-81.955,35.927,-81.982,35.912]]],["Beaufort","NC","3",[[-77.19,35.419,-77.189,35.426,-77.191,35.435,-77.181,35.441,-77.18,35.456,-77.174,35.457,-77.175,35.474,-77.088,35.564,-77.174,35.635,-77.174,35.733,-76.986,35.658,-76.845,35.705,-76.638,35.705,-76.564,35.601,-76.468,35.557,-76.599,35.52,-76.547,35.39,-76.58,35.387,-76.606,35.387,-76.621,35.378,-76.628,35.369,-76.629,35.368,-76.62,35.346,-76.605,35.338,-76.633,35.235,-76.845,35.216,-76.896,35.254,-77.19,35.419]]],["Bertie","NC","4",[[-76.692,35.945,-76.761,35.865,-76.83,35.886,-76.889,35.812,-76.919,35.896,-77.004,35.859,-77.044,35.943,-77.197,35.937,-77.206,36.005,-77.328,36.075,-77.231,36.104,-77.265,36.16,-77.292,36.168,-77.209,36.247,-77.183,36.243,-76.707,36.244,-76.736,36.147,-76.669,36.021,-76.672,36.018,-76.685,36.01,-76.684,36.0,-76.68,35.992,-76.685,35.983,-76.695,35.974,-76.7,35.965,-76.698,35.952,-76.692,35.945]]],["Bladen","NC","3",[[-78.256,34.4,-78.337,34.367,-78.446,34.377,-78.677,34.469,-78.872,34.483,-78.806,34.689,-78.901,34.835,-78.495,34.856,-78.255,34.554,-78.176,34.465,-78.256,34.4]]],["Brunswick","NC","3",[[-77.937,33.929,-77.947,33.912,-77.957,33.878,-77.96,33.853,-77.971,33.845,-78.007,33.859,-78.01,33.861,-78.009,33.868,-78.019,33.888,-78.095,33.906,-78.137,33.912,-78.178,33.914,-78.276,33.912,-78.384,33.902,-78.509,33.866,-78.541,33.851,-78.65,33.944,-78.557,34.062,-78.545,34.146,-78.495,34.167,-78.423,34.139,-78.374,34.205,-78.254,34.216,-78.162,34.357,-78.03,34.332,-77.952,34.232,-77.937,33.929]]],["Buncombe","NC","4",[[-82.169,35.528,-82.267,35.466,-82.57,35.431,-82.672,35.46,-82.744,35.423,-82.8,35.471,-82.767,35.567,-82.884,35.678,-82.807,35.686,-82.515,35.803,-82.409,35.818,-82.348,35.811,-82.275,35.704,-82.291,35.591,-82.169,35.528]]],["Burke","NC","4",[[-81.824,35.575,-81.869,35.72,-81.987,35.807,-81.907,35.883,-81.944,35.959,-81.9,36.0,-81.807,35.962,-81.556,35.777,-81.364,35.768,-81.534,35.569,-81.536,35.567,-81.536,35.567,-81.536,35.567,-81.538,35.564,-81.692,35.58,-81.824,35.575]]],["Cabarrus","NC","3",[[-80.72,35.363,-80.744,35.381,-80.755,35.395,-80.764,35.4,-80.784,35.506,-80.737,35.506,-80.737,35.507,-80.688,35.507,-80.658,35.506,-80.65,35.506,-80.649,35.506,-80.646,35.506,-80.562,35.503,-80.295,35.503,-80.505,35.184,-80.506,35.185,-80.55,35.208,-80.666,35.268,-80.667,35.269,-80.694,35.347,-80.709,35.355,-80.72,35.363]]],["Caldwell","NC","4",[[-81.334,35.796,-81.346,35.794,-81.356,35.78,-81.354,35.769,-81.364,35.768,-81.556,35.777,-81.807,35.962,-81.736,36.067,-81.812,36.112,-81.545,36.117,-81.328,35.997,-81.334,35.796]]],["Camden","NC","3",[[-76.491,36.55,-76.313,36.551,-76.313,36.551,-76.159,36.426,-76.114,36.357,-76.051,36.36,-75.948,36.285,-75.887,36.16,-75.905,36.164,-75.92,36.165,-75.925,36.164,-75.939,36.166,-75.995,36.178,-76.017,36.186,-76.019,36.188,-76.032,36.189,-76.047,36.183,-76.217,36.298,-76.231,36.372,-76.491,36.511,-76.541,36.55,-76.491,36.55]]],["Carteret","NC","3",[[-77.09,34.803,-76.939,34.829,-76.693,34.869,-76.654,34.937,-76.711,34.982,-76.645,35.02,-76.642,35.013,-76.629,34.995,-76.588,34.991,-76.567,34.998,-76.54,35.0,-76.503,35.007,-76.496,35.012,-76.491,35.017,-76.49,35.034,-76.48,35.052,-76.475,35.07,-76.469,35.075,-76.463,35.076,-76.436,35.058,-76.433,35.049,-76.432,35.031,-76.425,35.001,-76.406,34.987,-76.398,34.977,-76.396,34.975,-76.332,34.971,-76.326,34.976,-76.33,34.987,-76.35,35.017,-76.361,35.026,-76.364,35.031,-76.364,35.035,-76.352,35.033,-76.319,35.021,-76.294,35.01,-76.288,35.006,-76.289,34.997,-76.291,34.994,-76.294,34.992,-76.296,34.987,-76.297,34.976,-76.291,34.969,-76.276,34.961,-76.275,34.954,-76.278,34.94,-76.284,34.937,-76.311,34.91,-76.32,34.898,-76.334,34.882,-76.348,34.872,-76.368,34.873,-76.377,34.868,-76.38,34.863,-76.395,34.855,-76.4,34.855,-76.412,34.841,-76.416,34.826,-76.416,34.814,-76.403,34.806,-76.39,34.806,-76.384,34.808,-76.373,34.817,-76.363,34.824,-76.341,34.843,-76.323,34.861,-76.274,34.897,-76.234,34.926,-76.195,34.963,-76.16,34.991,-76.112,35.034,-76.093,35.049,-76.07,35.076,-76.065,35.077,-76.044,35.07,-76.039,35.065,-76.036,35.059,-76.073,35.031,-76.137,34.988,-76.233,34.905,-76.31,34.852,-76.387,34.785,-76.45,34.714,-76.494,34.662,-76.524,34.615,-76.536,34.589,-76.555,34.616,-76.554,34.628,-76.55,34.631,-76.549,34.646,-76.579,34.66,-76.619,34.673,-76.643,34.678,-76.663,34.686,-76.676,34.693,-76.694,34.693,-76.727,34.697,-76.77,34.697,-76.817,34.694,-76.906,34.683,-76.99,34.67,-77.031,34.661,-77.113,34.639,-77.126,34.757,-77.166,34.785,-77.09,34.803]]],["Caswell","NC","4",[[-79.511,36.541,-79.511,36.541,-79.47,36.541,-79.446,36.541,-79.446,36.541,-79.343,36.541,-79.219,36.542,-79.209,36.542,-79.209,36.542,-79.138,36.542,-79.154,36.242,-79.257,36.244,-79.316,36.245,-79.365,36.246,-79.523,36.25,-79.532,36.249,-79.511,36.541]]],["Catawba","NC","4",[[-81.364,35.768,-81.354,35.769,-81.356,35.78,-81.346,35.794,-81.334,35.796,-81.142,35.827,-81.109,35.777,-80.925,35.622,-80.96,35.548,-80.962,35.548,-81.534,35.569,-81.364,35.768]]],["Chatham","NC","4",[[-78.906,35.868,-78.909,35.843,-78.971,35.676,-78.995,35.61,-78.913,35.583,-78.97,35.521,-79.119,35.628,-79.35,35.518,-79.351,35.518,-79.556,35.515,-79.542,35.843,-79.319,35.844,-79.249,35.877,-79.017,35.863,-78.906,35.868]]],["Cherokee","NC","4",[[-84.322,34.988,-84.309,35.093,-84.308,35.093,-84.292,35.207,-84.29,35.226,-84.228,35.268,-84.224,35.269,-84.212,35.266,-84.203,35.256,-84.125,35.25,-84.121,35.251,-84.115,35.25,-84.115,35.25,-84.098,35.247,-84.056,35.268,-84.029,35.291,-83.959,35.217,-83.845,35.255,-83.703,35.248,-83.738,35.156,-83.857,35.137,-84.005,34.987,-84.021,34.987,-84.03,34.987,-84.129,34.988,-84.13,34.988,-84.322,34.988]]],["Chowan","NC","3",[[-76.412,36.075,-76.413,36.072,-76.421,36.061,-76.443,36.043,-76.451,36.039,-76.459,36.028,-76.459,36.024,-76.492,36.018,-76.514,36.006,-76.548,36.01,-76.563,36.01,-76.576,36.006,-76.581,36.007,-76.59,36.016,-76.604,36.033,-76.615,36.038,-76.632,36.038,-76.653,36.035,-76.669,36.021,-76.736,36.147,-76.707,36.244,-76.69,36.267,-76.697,36.296,-76.56,36.352,-76.59,36.239,-76.573,36.112,-76.412,36.075]]],["Clay","NC","4",[[-83.483,34.994,-83.549,34.992,-83.62,34.992,-83.674,34.987,-83.936,34.987,-83.937,34.987,-84.005,34.987,-83.857,35.137,-83.738,35.156,-83.66,35.16,-83.483,34.994]]],["Cleveland","NC","4",[[-81.328,35.163,-81.367,35.165,-81.367,35.165,-81.452,35.168,-81.461,35.169,-81.493,35.17,-81.494,35.17,-81.768,35.18,-81.703,35.357,-81.692,35.58,-81.538,35.564,-81.457,35.42,-81.365,35.311,-81.321,35.26,-81.328,35.163]]],["Columbus","NC","3",[[-78.71,33.995,-78.712,33.997,-79.071,34.299,-78.951,34.449,-78.872,34.483,-78.677,34.469,-78.446,34.377,-78.337,34.367,-78.256,34.4,-78.162,34.357,-78.254,34.216,-78.374,34.205,-78.423,34.139,-78.495,34.167,-78.545,34.146,-78.557,34.062,-78.65,33.944,-78.71,33.995]]],["Craven","NC","3",[[-77.125,35.078,-77.339,35.155,-77.474,35.229,-77.391,35.34,-77.384,35.335,-77.375,35.334,-77.365,35.334,-77.361,35.332,-77.357,35.329,-77.354,35.328,-77.301,35.374,-77.296,35.379,-77.19,35.419,-76.896,35.254,-76.987,35.156,-76.935,35.106,-76.967,35.041,-76.897,34.982,-76.893,34.98,-76.839,34.959,-76.711,34.982,-76.654,34.937,-76.693,34.869,-76.939,34.829,-77.09,34.803,-77.109,34.888,-77.125,35.078]]],["Cumberland","NC","3",[[-78.617,35.246,-78.67,35.093,-78.648,34.995,-78.523,34.884,-78.521,34.883,-78.519,34.883,-78.52,34.884,-78.518,34.884,-78.516,34.883,-78.516,34.882,-78.514,34.882,-78.514,34.881,-78.513,34.881,-78.514,34.876,-78.515,34.876,-78.515,34.874,-78.513,34.873,-78.513,34.869,-78.512,34.868,-78.507,34.867,-78.506,34.865,-78.503,34.865,-78.502,34.862,-78.499,34.859,-78.497,34.859,-78.495,34.859,-78.495,34.858,-78.495,34.856,-78.901,34.835,-79.035,34.954,-79.036,34.955,-79.036,34.956,-79.037,34.957,-79.083,35.033,-79.098,35.174,-79.096,35.178,-79.099,35.183,-79.098,35.188,-79.096,35.192,-78.942,35.219,-78.826,35.259,-78.617,35.246]]],["Currituck","NC","3",[[-76.122,36.551,-76.035,36.551,-76.027,36.551,-75.958,36.551,-75.956,36.551,-75.953,36.551,-75.953,36.551,-75.922,36.551,-75.911,36.551,-75.909,36.551,-75.905,36.551,-75.903,36.551,-75.894,36.551,-75.893,36.551,-75.892,36.551,-75.887,36.551,-75.886,36.551,-75.881,36.551,-75.88,36.551,-75.867,36.551,-75.857,36.5,-75.835,36.423,-75.819,36.358,-75.796,36.29,-75.773,36.232,-75.794,36.227,-75.799,36.231,-75.804,36.236,-75.812,36.244,-75.812,36.248,-75.808,36.26,-75.814,36.285,-75.823,36.292,-75.834,36.292,-75.838,36.295,-75.845,36.306,-75.841,36.329,-75.832,36.339,-75.832,36.346,-75.836,36.363,-75.843,36.371,-75.847,36.372,-75.851,36.379,-75.853,36.385,-75.851,36.416,-75.864,36.431,-75.88,36.436,-75.888,36.442,-75.891,36.461,-75.9,36.482,-75.907,36.486,-75.913,36.486,-75.917,36.486,-75.924,36.482,-75.927,36.483,-75.935,36.491,-75.96,36.495,-75.973,36.495,-76.004,36.506,-76.019,36.504,-76.024,36.501,-76.029,36.494,-76.032,36.482,-76.02,36.459,-76.012,36.447,-76.004,36.442,-75.99,36.437,-75.98,36.435,-75.962,36.417,-75.941,36.419,-75.936,36.423,-75.933,36.428,-75.928,36.429,-75.924,36.426,-75.916,36.389,-75.917,36.383,-75.924,36.368,-75.923,36.362,-75.918,36.354,-75.915,36.352,-75.895,36.32,-75.888,36.293,-75.882,36.285,-75.873,36.283,-75.865,36.285,-75.861,36.281,-75.862,36.266,-75.867,36.252,-75.864,36.236,-75.859,36.223,-75.849,36.217,-75.838,36.2,-75.841,36.194,-75.84,36.177,-75.824,36.158,-75.823,36.146,-75.813,36.137,-75.8,36.113,-75.792,36.082,-75.794,36.072,-75.8,36.073,-75.836,36.093,-75.848,36.102,-75.868,36.127,-75.866,36.141,-75.867,36.151,-75.87,36.155,-75.875,36.157,-75.887,36.16,-75.948,36.285,-76.051,36.36,-76.114,36.357,-76.159,36.426,-76.313,36.551,-76.122,36.551]]],["Dare","NC","3",[[-75.754,35.2,-75.745,35.203,-75.734,35.204,-75.718,35.209,-75.709,35.214,-75.699,35.221,-75.694,35.223,-75.687,35.231,-75.684,35.233,-75.682,35.233,-75.675,35.228,-75.665,35.228,-75.641,35.234,-75.63,35.238,-75.615,35.249,-75.599,35.256,-75.598,35.261,-75.598,35.267,-75.597,35.269,-75.585,35.266,-75.582,35.264,-75.561,35.266,-75.536,35.273,-75.529,35.288,-75.524,35.318,-75.519,35.336,-75.513,35.363,-75.507,35.387,-75.5,35.424,-75.495,35.454,-75.488,35.485,-75.489,35.498,-75.49,35.508,-75.488,35.526,-75.482,35.539,-75.479,35.553,-75.479,35.599,-75.481,35.623,-75.488,35.648,-75.499,35.666,-75.507,35.681,-75.516,35.722,-75.515,35.73,-75.534,35.774,-75.529,35.776,-75.522,35.774,-75.502,35.743,-75.496,35.729,-75.479,35.679,-75.459,35.597,-75.46,35.581,-75.462,35.554,-75.471,35.48,-75.487,35.392,-75.502,35.32,-75.526,35.234,-75.534,35.226,-75.545,35.228,-75.56,35.232,-75.58,35.231,-75.61,35.228,-75.635,35.22,-75.673,35.208,-75.729,35.19,-75.749,35.185,-75.758,35.183,-75.77,35.18,-75.79,35.172,-75.84,35.151,-75.913,35.12,-75.945,35.105,-75.964,35.092,-75.983,35.082,-76.002,35.067,-76.013,35.062,-76.015,35.065,-76.014,35.069,-76.001,35.084,-75.992,35.092,-75.989,35.101,-75.991,35.109,-75.989,35.115,-75.984,35.12,-75.973,35.121,-75.966,35.118,-75.955,35.12,-75.924,35.135,-75.91,35.142,-75.894,35.15,-75.84,35.172,-75.819,35.177,-75.813,35.179,-75.801,35.183,-75.793,35.189,-75.786,35.194,-75.754,35.199,-75.754,35.2],[-75.773,36.232,-75.773,36.229,-75.76,36.205,-75.738,36.154,-75.718,36.114,-75.697,36.077,-75.659,36.02,-75.57,35.863,-75.552,35.822,-75.539,35.797,-75.533,35.787,-75.536,35.78,-75.543,35.78,-75.547,35.787,-75.554,35.799,-75.566,35.813,-75.573,35.829,-75.589,35.845,-75.601,35.867,-75.619,35.889,-75.617,35.906,-75.618,35.914,-75.62,35.925,-75.631,35.942,-75.649,35.966,-75.668,35.978,-75.672,35.985,-75.679,35.994,-75.724,36.003,-75.727,36.011,-75.727,36.021,-75.722,36.032,-75.723,36.037,-75.727,36.041,-75.737,36.041,-75.741,36.047,-75.742,36.056,-75.739,36.067,-75.74,36.075,-75.75,36.121,-75.75,36.131,-75.752,36.141,-75.756,36.154,-75.776,36.201,-75.784,36.216,-75.793,36.226,-75.794,36.227,-75.773,36.232],[-75.675,35.929,-75.66,35.92,-75.663,35.916,-75.662,35.907,-75.653,35.905,-75.649,35.907,-75.645,35.906,-75.628,35.883,-75.617,35.856,-75.62,35.848,-75.614,35.816,-75.62,35.809,-75.624,35.809,-75.639,35.819,-75.668,35.824,-75.675,35.83,-75.66,35.839,-75.661,35.863,-75.663,35.87,-75.673,35.882,-75.681,35.884,-75.698,35.902,-75.697,35.91,-75.702,35.915,-75.724,35.926,-75.727,35.934,-75.727,35.936,-75.718,35.94,-75.705,35.939,-75.691,35.937,-75.686,35.933,-75.675,35.929],[-75.999,35.904,-75.978,35.897,-75.966,35.899,-75.963,35.901,-75.948,35.92,-75.934,35.928,-75.93,35.929,-75.927,35.932,-75.927,35.94,-75.938,35.951,-75.944,35.952,-75.947,35.956,-75.947,35.96,-75.938,35.965,-75.899,35.977,-75.879,35.979,-75.86,35.978,-75.85,35.976,-75.809,35.959,-75.805,35.954,-75.801,35.945,-75.782,35.936,-75.782,35.928,-75.779,35.918,-75.769,35.901,-75.752,35.878,-75.753,35.871,-75.748,35.852,-75.735,35.839,-75.727,35.823,-75.727,35.811,-75.733,35.791,-75.738,35.778,-75.739,35.771,-75.735,35.768,-75.725,35.743,-75.719,35.714,-75.715,35.708,-75.713,35.698,-75.714,35.694,-75.742,35.672,-75.742,35.655,-75.737,35.638,-75.73,35.629,-75.73,35.626,-75.747,35.61,-75.763,35.604,-75.778,35.592,-75.775,35.579,-75.797,35.574,-75.837,35.571,-75.852,35.579,-75.86,35.587,-75.87,35.583,-75.901,35.669,-76.046,35.666,-75.999,35.904]]],["Davidson","NC","3",[[-80.395,35.973,-80.267,35.997,-80.214,35.997,-80.214,36.027,-80.15,36.027,-80.138,36.025,-80.043,36.011,-80.046,35.956,-80.046,35.956,-80.047,35.935,-80.047,35.921,-80.047,35.917,-80.067,35.506,-80.183,35.504,-80.208,35.58,-80.327,35.675,-80.332,35.719,-80.339,35.721,-80.37,35.716,-80.392,35.722,-80.414,35.722,-80.459,35.743,-80.464,35.828,-80.366,35.896,-80.395,35.973]]],["Davie","NC","4",[[-80.496,36.047,-80.395,35.973,-80.366,35.896,-80.464,35.828,-80.459,35.743,-80.632,35.846,-80.708,35.853,-80.693,36.051,-80.496,36.047]]],["Duplin","NC","3",[[-78.113,34.722,-78.2,34.737,-78.147,34.902,-78.165,35.179,-78.164,35.189,-78.044,35.193,-77.893,35.147,-77.834,35.178,-77.769,35.145,-77.748,35.071,-77.746,35.023,-77.74,35.017,-77.731,35.008,-77.731,35.008,-77.683,34.979,-77.675,34.973,-77.671,34.812,-77.676,34.787,-77.681,34.721,-78.113,34.722]]],["Durham","NC","4",[[-79.017,35.863,-78.951,36.239,-78.949,36.239,-78.802,36.236,-78.805,36.092,-78.749,36.071,-78.698,36.012,-78.832,35.867,-78.906,35.868,-79.017,35.863]]],["Edgecombe","NC","3",[[-77.809,35.909,-77.778,35.985,-77.774,35.999,-77.698,36.153,-77.538,36.094,-77.527,36.038,-77.403,36.005,-77.342,35.905,-77.351,35.819,-77.39,35.833,-77.516,35.761,-77.538,35.75,-77.661,35.677,-77.752,35.828,-77.828,35.867,-77.822,35.878,-77.809,35.909]]],["Forsyth","NC","4",[[-80.138,36.025,-80.15,36.027,-80.214,36.027,-80.214,35.997,-80.267,35.997,-80.395,35.973,-80.496,36.047,-80.516,36.093,-80.44,36.137,-80.452,36.241,-80.452,36.241,-80.452,36.242,-80.452,36.262,-80.036,36.257,-80.043,36.011,-80.138,36.025]]],["Franklin","NC","4",[[-78.496,36.175,-78.422,36.164,-78.307,36.266,-78.133,36.246,-78.007,36.203,-78.172,35.956,-78.255,35.818,-78.307,35.897,-78.546,36.022,-78.545,36.081,-78.496,36.175]]],["Gaston","NC","3",[[-81.043,35.148,-81.09,35.153,-81.239,35.16,-81.242,35.16,-81.269,35.161,-81.328,35.163,-81.321,35.26,-81.365,35.311,-81.457,35.42,-81.3,35.415,-80.955,35.401,-81.009,35.246,-81.014,35.221,-81.006,35.21,-81.005,35.19,-81.006,35.157,-81.043,35.146,-81.043,35.148]]],["Gates","NC","4",[[-76.542,36.55,-76.541,36.55,-76.491,36.511,-76.491,36.469,-76.454,36.378,-76.539,36.357,-76.557,36.355,-76.56,36.352,-76.697,36.296,-76.762,36.353,-76.932,36.401,-76.916,36.544,-76.915,36.544,-76.807,36.551,-76.781,36.551,-76.542,36.55]]],["Graham","NC","4",[[-84.029,35.291,-84.024,35.296,-84.021,35.301,-84.032,35.325,-84.032,35.327,-84.038,35.348,-84.037,35.35,-84.035,35.351,-84.025,35.354,-84.002,35.423,-84.0,35.425,-83.961,35.459,-83.961,35.463,-83.961,35.464,-83.961,35.464,-83.953,35.461,-83.953,35.461,-83.586,35.435,-83.68,35.279,-83.684,35.277,-83.684,35.274,-83.686,35.272,-83.689,35.267,-83.69,35.265,-83.692,35.264,-83.693,35.261,-83.694,35.259,-83.695,35.257,-83.697,35.256,-83.699,35.253,-83.701,35.252,-83.703,35.248,-83.845,35.255,-83.959,35.217,-84.029,35.291]]],["Granville","NC","4",[[-78.758,36.542,-78.734,36.542,-78.67,36.542,-78.663,36.542,-78.533,36.541,-78.53,36.541,-78.471,36.542,-78.471,36.542,-78.457,36.542,-78.511,36.431,-78.511,36.31,-78.511,36.268,-78.51,36.241,-78.509,36.183,-78.496,36.175,-78.545,36.081,-78.546,36.022,-78.749,36.071,-78.805,36.092,-78.802,36.236,-78.795,36.527,-78.796,36.542,-78.765,36.542,-78.758,36.542]]],["Greene","NC","3",[[-77.826,35.477,-77.824,35.499,-77.823,35.586,-77.822,35.585,-77.818,35.588,-77.816,35.588,-77.811,35.586,-77.809,35.584,-77.806,35.583,-77.802,35.586,-77.754,35.616,-77.701,35.652,-77.509,35.52,-77.476,35.427,-77.661,35.353,-77.681,35.348,-77.702,35.381,-77.739,35.375,-77.75,35.373,-77.778,35.368,-77.806,35.37,-77.805,35.37,-77.803,35.373,-77.8,35.382,-77.806,35.407,-77.818,35.416,-77.827,35.431,-77.826,35.477]]],["Guilford","NC","4",[[-80.036,36.257,-80.027,36.258,-79.809,36.25,-79.798,36.249,-79.701,36.246,-79.532,36.241,-79.542,35.902,-79.542,35.9,-80.02,35.92,-80.047,35.921,-80.047,35.935,-80.046,35.956,-80.046,35.956,-80.043,36.011,-80.036,36.257]]],["Halifax","NC","4",[[-77.898,36.507,-77.645,36.481,-77.557,36.419,-77.586,36.337,-77.442,36.324,-77.387,36.214,-77.351,36.191,-77.331,36.193,-77.3,36.165,-77.292,36.168,-77.265,36.16,-77.231,36.104,-77.328,36.075,-77.339,36.065,-77.403,36.005,-77.527,36.038,-77.538,36.094,-77.698,36.153,-77.887,36.144,-78.007,36.203,-77.912,36.382,-77.898,36.507]]],["Harnett","NC","4",[[-78.617,35.246,-78.826,35.259,-78.942,35.219,-79.096,35.192,-79.223,35.268,-79.183,35.307,-78.97,35.521,-78.913,35.583,-78.709,35.519,-78.661,35.496,-78.53,35.334,-78.541,35.315,-78.617,35.246]]],["Haywood","NC","4",[[-83.254,35.696,-83.251,35.709,-83.255,35.715,-83.251,35.72,-83.241,35.727,-83.165,35.76,-83.1,35.775,-83.1,35.775,-83.1,35.775,-82.996,35.773,-82.984,35.778,-82.964,35.794,-82.884,35.678,-82.767,35.567,-82.8,35.471,-82.744,35.423,-82.745,35.423,-82.832,35.318,-82.921,35.292,-82.997,35.373,-83.186,35.515,-83.182,35.671,-83.254,35.696]]],["Henderson","NC","4",[[-82.352,35.207,-82.384,35.211,-82.476,35.175,-82.517,35.163,-82.517,35.163,-82.536,35.159,-82.537,35.159,-82.574,35.144,-82.62,35.304,-82.745,35.423,-82.744,35.423,-82.672,35.46,-82.57,35.431,-82.267,35.466,-82.28,35.446,-82.27,35.4,-82.261,35.393,-82.346,35.286,-82.352,35.207]]],["Hertford","NC","4",[[-76.707,36.244,-77.183,36.243,-77.209,36.247,-77.12,36.474,-77.165,36.546,-76.916,36.544,-76.916,36.544,-76.932,36.401,-76.762,36.353,-76.697,36.296,-76.69,36.267,-76.707,36.244]]],["Hoke","NC","3",[[-79.083,35.033,-79.037,34.957,-79.036,34.956,-79.036,34.955,-79.035,34.954,-79.191,34.833,-79.349,34.838,-79.354,34.946,-79.459,35.043,-79.335,35.162,-79.23,35.211,-79.098,35.174,-79.083,35.033]]],["Hyde","NC","3",[[-75.87,35.583,-75.895,35.573,-75.907,35.559,-75.909,35.555,-75.909,35.546,-75.916,35.538,-75.946,35.534,-75.95,35.531,-75.955,35.527,-75.964,35.511,-75.965,35.505,-75.962,35.497,-75.963,35.494,-75.987,35.484,-75.996,35.475,-75.995,35.464,-75.998,35.453,-76.01,35.442,-76.013,35.433,-76.011,35.423,-76.015,35.417,-76.021,35.411,-76.025,35.408,-76.037,35.414,-76.05,35.416,-76.06,35.41,-76.064,35.405,-76.064,35.398,-76.061,35.393,-76.06,35.384,-76.069,35.371,-76.093,35.361,-76.123,35.351,-76.133,35.349,-76.143,35.339,-76.143,35.329,-76.15,35.326,-76.165,35.329,-76.169,35.332,-76.182,35.337,-76.206,35.337,-76.235,35.35,-76.253,35.35,-76.258,35.344,-76.265,35.343,-76.282,35.346,-76.305,35.356,-76.327,35.357,-76.335,35.356,-76.341,35.347,-76.35,35.346,-76.365,35.349,-76.374,35.356,-76.382,35.357,-76.388,35.357,-76.399,35.349,-76.408,35.35,-76.409,35.353,-76.421,35.359,-76.432,35.362,-76.436,35.378,-76.449,35.384,-76.455,35.384,-76.462,35.38,-76.472,35.371,-76.486,35.371,-76.499,35.381,-76.522,35.392,-76.547,35.39,-76.599,35.52,-76.468,35.557,-76.564,35.601,-76.638,35.705,-76.546,35.705,-76.395,35.697,-76.269,35.691,-76.298,35.609,-76.214,35.598,-76.144,35.703,-76.046,35.666,-75.901,35.669,-75.87,35.583]]],["Iredell","NC","4",[[-81.109,35.777,-81.094,35.794,-81.079,35.803,-81.076,35.815,-81.065,35.824,-81.052,35.845,-81.005,35.958,-81.029,36.046,-80.882,36.056,-80.693,36.051,-80.708,35.853,-80.772,35.675,-80.757,35.616,-80.737,35.507,-80.737,35.506,-80.784,35.506,-80.947,35.488,-80.96,35.548,-80.925,35.622,-81.109,35.777]]],["Jackson","NC","4",[[-82.921,35.292,-82.983,35.132,-83.055,35.054,-83.008,35.027,-83.109,35.001,-83.109,35.001,-83.34,35.331,-83.351,35.468,-83.186,35.515,-82.997,35.373,-82.921,35.292]]],["Johnston","NC","3",[[-78.391,35.263,-78.491,35.263,-78.541,35.315,-78.53,35.334,-78.661,35.496,-78.709,35.519,-78.567,35.629,-78.474,35.702,-78.255,35.818,-78.192,35.73,-78.126,35.603,-78.065,35.585,-78.155,35.418,-78.153,35.351,-78.305,35.286,-78.333,35.279,-78.391,35.263]]],["Jones","NC","3",[[-77.474,35.229,-77.339,35.155,-77.125,35.078,-77.109,34.888,-77.09,34.803,-77.166,34.785,-77.222,34.887,-77.328,34.938,-77.367,34.907,-77.452,34.947,-77.675,34.973,-77.683,34.979,-77.731,35.008,-77.731,35.008,-77.602,35.071,-77.507,35.172,-77.527,35.243,-77.523,35.242,-77.479,35.23,-77.474,35.229]]],["Lee","NC","4",[[-79.183,35.307,-79.274,35.353,-79.35,35.518,-79.119,35.628,-78.97,35.521,-79.183,35.307]]],["Lenoir","NC","3",[[-77.748,35.071,-77.769,35.145,-77.834,35.178,-77.831,35.233,-77.806,35.37,-77.778,35.368,-77.75,35.373,-77.739,35.375,-77.702,35.381,-77.681,35.348,-77.661,35.353,-77.476,35.427,-77.473,35.426,-77.47,35.42,-77.427,35.35,-77.391,35.34,-77.474,35.229,-77.479,35.23,-77.523,35.242,-77.527,35.243,-77.507,35.172,-77.602,35.071,-77.731,35.008,-77.74,35.017,-77.746,35.023,-77.748,35.071]]],["Lincoln","NC","4",[[-80.955,35.401,-81.3,35.415,-81.457,35.42,-81.538,35.564,-81.536,35.567,-81.536,35.567,-81.536,35.567,-81.534,35.569,-80.962,35.548,-80.96,35.548,-80.947,35.488,-80.955,35.401]]],["Macon","NC","4",[[-83.34,35.331,-83.109,35.001,-83.483,34.994,-83.66,35.16,-83.738,35.156,-83.703,35.248,-83.701,35.252,-83.699,35.253,-83.697,35.256,-83.695,35.257,-83.694,35.259,-83.693,35.261,-83.692,35.264,-83.69,35.265,-83.689,35.267,-83.686,35.272,-83.684,35.274,-83.684,35.277,-83.68,35.279,-83.34,35.331]]],["Madison","NC","4",[[-82.899,35.945,-82.899,35.945,-82.874,35.953,-82.853,35.949,-82.83,35.933,-82.779,35.975,-82.754,36.004,-82.715,36.024,-82.684,36.046,-82.637,36.066,-82.632,36.066,-82.619,36.057,-82.603,36.04,-82.615,36.0,-82.611,35.973,-82.597,35.965,-82.558,35.955,-82.513,35.976,-82.507,35.977,-82.506,35.978,-82.409,35.818,-82.515,35.803,-82.807,35.686,-82.884,35.678,-82.964,35.794,-82.963,35.795,-82.918,35.845,-82.898,35.881,-82.913,35.924,-82.899,35.945]]],["Martin","NC","3",[[-77.328,36.075,-77.206,36.005,-77.197,35.937,-77.044,35.943,-77.004,35.859,-76.919,35.896,-76.889,35.812,-76.83,35.886,-76.761,35.865,-76.845,35.705,-76.986,35.658,-77.174,35.733,-77.351,35.819,-77.342,35.905,-77.403,36.005,-77.339,36.065,-77.328,36.075]]],["McDowell","NC","4",[[-81.824,35.575,-81.974,35.525,-82.003,35.552,-82.169,35.528,-82.291,35.591,-82.275,35.704,-82.197,35.736,-82.133,35.824,-81.982,35.912,-81.955,35.927,-81.963,35.942,-81.944,35.959,-81.907,35.883,-81.987,35.807,-81.869,35.72,-81.824,35.575]]],["Mecklenburg","NC","3",[[-80.906,35.077,-80.907,35.077,-80.935,35.107,-80.958,35.093,-81.041,35.045,-81.057,35.062,-81.058,35.073,-81.057,35.086,-81.052,35.096,-81.047,35.101,-81.036,35.103,-81.033,35.109,-81.043,35.146,-81.006,35.157,-81.005,35.19,-81.006,35.21,-81.014,35.221,-81.009,35.246,-80.955,35.401,-80.947,35.488,-80.784,35.506,-80.764,35.4,-80.755,35.395,-80.744,35.381,-80.72,35.363,-80.709,35.355,-80.694,35.347,-80.667,35.269,-80.666,35.268,-80.55,35.208,-80.77,35.034,-80.84,35.002,-80.906,35.077]]],["Mitchell","NC","5",[[-82.417,36.073,-82.409,36.083,-82.376,36.106,-82.371,36.106,-82.367,36.108,-82.361,36.111,-82.348,36.116,-82.329,36.117,-82.325,36.119,-82.238,36.139,-82.236,36.14,-82.235,36.141,-82.235,36.142,-82.222,36.157,-82.211,36.159,-82.148,36.15,-82.137,36.129,-82.138,36.12,-82.131,36.106,-82.127,36.104,-82.081,36.106,-82.034,35.942,-81.982,35.912,-82.133,35.824,-82.199,36.016,-82.338,36.03,-82.417,36.073]]],["Montgomery","NC","3",[[-79.769,35.511,-79.698,35.251,-79.614,35.164,-79.852,35.183,-80.075,35.143,-80.098,35.255,-80.052,35.373,-80.183,35.504,-80.067,35.506,-79.769,35.511]]],["Moore","NC","3",[[-79.614,35.164,-79.698,35.251,-79.769,35.511,-79.556,35.515,-79.351,35.518,-79.35,35.518,-79.274,35.353,-79.183,35.307,-79.223,35.268,-79.096,35.192,-79.098,35.188,-79.099,35.183,-79.096,35.178,-79.098,35.174,-79.23,35.211,-79.335,35.162,-79.459,35.043,-79.575,35.07,-79.614,35.164]]],["Nash","NC","4",[[-77.916,35.837,-77.928,35.832,-77.931,35.83,-78.192,35.73,-78.255,35.818,-78.172,35.956,-78.007,36.203,-77.887,36.144,-77.698,36.153,-77.774,35.999,-77.778,35.985,-77.809,35.909,-77.822,35.878,-77.828,35.867,-77.916,35.837]]],["New Hanover","NC","3",[[-77.937,33.929,-77.952,34.232,-78.03,34.332,-77.823,34.389,-77.716,34.293,-77.74,34.273,-77.764,34.246,-77.829,34.163,-77.842,34.141,-77.87,34.079,-77.874,34.076,-77.878,34.068,-77.916,33.972,-77.928,33.945,-77.937,33.929]]],["Northampton","NC","4",[[-77.767,36.545,-77.297,36.545,-77.25,36.545,-77.165,36.546,-77.12,36.474,-77.209,36.247,-77.292,36.168,-77.3,36.165,-77.331,36.193,-77.351,36.191,-77.387,36.214,-77.442,36.324,-77.586,36.337,-77.557,36.419,-77.645,36.481,-77.898,36.507,-77.899,36.518,-77.9,36.545,-77.882,36.545,-77.875,36.545,-77.767,36.545]]],["Onslow","NC","3",[[-77.671,34.812,-77.675,34.973,-77.452,34.947,-77.367,34.907,-77.328,34.938,-77.222,34.887,-77.166,34.785,-77.126,34.757,-77.113,34.639,-77.137,34.633,-77.17,34.622,-77.209,34.605,-77.241,34.588,-77.323,34.536,-77.463,34.471,-77.492,34.456,-77.518,34.44,-77.576,34.479,-77.681,34.721,-77.676,34.787,-77.671,34.812]]],["Orange","NC","4",[[-79.259,36.137,-79.257,36.244,-79.154,36.242,-78.951,36.239,-79.017,35.863,-79.249,35.877,-79.259,36.137]]],["Pamlico","NC","3",[[-76.839,34.959,-76.893,34.98,-76.897,34.982,-76.967,35.041,-76.935,35.106,-76.987,35.156,-76.896,35.254,-76.845,35.216,-76.633,35.235,-76.605,35.338,-76.603,35.337,-76.588,35.333,-76.554,35.332,-76.549,35.329,-76.5,35.322,-76.482,35.314,-76.472,35.295,-76.468,35.277,-76.468,35.261,-76.478,35.243,-76.484,35.241,-76.49,35.233,-76.491,35.221,-76.495,35.213,-76.505,35.207,-76.522,35.193,-76.536,35.175,-76.54,35.167,-76.536,35.15,-76.536,35.142,-76.546,35.123,-76.558,35.116,-76.561,35.108,-76.569,35.097,-76.576,35.093,-76.587,35.093,-76.593,35.084,-76.594,35.076,-76.6,35.068,-76.614,35.061,-76.623,35.061,-76.632,35.057,-76.64,35.051,-76.647,35.042,-76.647,35.025,-76.645,35.02,-76.711,34.982,-76.839,34.959]]],["Pasquotank","NC","3",[[-76.491,36.511,-76.231,36.372,-76.217,36.298,-76.047,36.183,-76.052,36.181,-76.063,36.174,-76.065,36.171,-76.065,36.165,-76.06,36.155,-76.059,36.149,-76.064,36.144,-76.072,36.14,-76.093,36.136,-76.179,36.123,-76.184,36.122,-76.191,36.116,-76.29,36.223,-76.375,36.259,-76.454,36.378,-76.491,36.469,-76.491,36.511]]],["Pender","NC","3",[[-77.518,34.44,-77.557,34.417,-77.582,34.401,-77.635,34.36,-77.662,34.342,-77.687,34.32,-77.713,34.295,-77.716,34.293,-77.823,34.389,-78.03,34.332,-78.162,34.357,-78.256,34.4,-78.176,34.465,-78.255,34.554,-78.113,34.722,-77.681,34.721,-77.576,34.479,-77.518,34.44]]],["Perquimans","NC","3",[[-76.454,36.378,-76.375,36.259,-76.29,36.223,-76.191,36.116,-76.191,36.116,-76.192,36.113,-76.192,36.107,-76.217,36.095,-76.239,36.099,-76.265,36.105,-76.287,36.105,-76.299,36.101,-76.304,36.093,-76.323,36.085,-76.332,36.084,-76.337,36.086,-76.355,36.086,-76.411,36.078,-76.412,36.075,-76.573,36.112,-76.59,36.239,-76.56,36.352,-76.557,36.355,-76.539,36.357,-76.454,36.378]]],["Person","NC","4",[[-78.796,36.542,-78.795,36.527,-78.802,36.236,-78.949,36.239,-78.951,36.239,-79.154,36.242,-79.138,36.542,-79.126,36.542,-79.125,36.542,-78.972,36.542,-78.971,36.542,-78.942,36.542,-78.942,36.542,-78.915,36.542,-78.915,36.542,-78.796,36.542]]],["Pitt","NC","3",[[-77.47,35.42,-77.473,35.426,-77.476,35.427,-77.509,35.52,-77.701,35.652,-77.689,35.66,-77.661,35.677,-77.538,35.75,-77.516,35.761,-77.39,35.833,-77.351,35.819,-77.174,35.733,-77.174,35.635,-77.088,35.564,-77.175,35.474,-77.174,35.457,-77.18,35.456,-77.181,35.441,-77.191,35.435,-77.189,35.426,-77.19,35.419,-77.296,35.379,-77.301,35.374,-77.354,35.328,-77.357,35.329,-77.361,35.332,-77.365,35.334,-77.375,35.334,-77.384,35.335,-77.391,35.34,-77.427,35.35,-77.47,35.42]]],["Polk","NC","4",[[-81.969,35.187,-82.168,35.194,-82.177,35.194,-82.186,35.194,-82.195,35.195,-82.216,35.196,-82.231,35.197,-82.231,35.197,-82.258,35.199,-82.288,35.199,-82.352,35.207,-82.346,35.286,-82.261,35.393,-82.115,35.387,-81.969,35.258,-81.969,35.187]]],["Randolph","NC","3",[[-80.047,35.917,-80.047,35.921,-80.02,35.92,-79.542,35.9,-79.542,35.843,-79.556,35.515,-79.769,35.511,-80.067,35.506,-80.047,35.917]]],["Richmond","NC","3",[[-79.744,34.806,-79.745,34.806,-79.773,34.806,-79.774,34.806,-79.928,34.807,-79.85,34.899,-79.876,35.038,-79.928,35.118,-79.999,35.085,-80.075,35.143,-79.852,35.183,-79.614,35.164,-79.575,35.07,-79.459,35.043,-79.573,34.992,-79.562,34.91,-79.693,34.805,-79.744,34.806]]],["Robeson","NC","3",[[-79.461,34.63,-79.462,34.63,-79.364,34.738,-79.359,34.743,-79.349,34.838,-79.191,34.833,-79.035,34.954,-78.901,34.835,-78.806,34.689,-78.872,34.483,-78.951,34.449,-79.071,34.299,-79.143,34.36,-79.151,34.367,-79.191,34.4,-79.192,34.401,-79.199,34.407,-79.323,34.515,-79.325,34.516,-79.331,34.522,-79.358,34.545,-79.45,34.621,-79.46,34.629,-79.461,34.63]]],["Rockingham","NC","4",[[-80.027,36.542,-79.968,36.543,-79.967,36.542,-79.92,36.542,-79.715,36.542,-79.667,36.542,-79.667,36.542,-79.511,36.541,-79.532,36.249,-79.532,36.241,-79.532,36.241,-79.701,36.246,-79.798,36.249,-79.809,36.25,-80.027,36.258,-80.036,36.257,-80.033,36.345,-80.027,36.542]]],["Rowan","NC","3",[[-80.757,35.616,-80.772,35.675,-80.708,35.853,-80.632,35.846,-80.459,35.743,-80.414,35.722,-80.392,35.722,-80.37,35.716,-80.339,35.721,-80.332,35.719,-80.327,35.675,-80.208,35.58,-80.183,35.504,-80.295,35.503,-80.562,35.503,-80.646,35.506,-80.649,35.506,-80.65,35.506,-80.658,35.506,-80.688,35.507,-80.737,35.507,-80.757,35.616]]],["Rutherford","NC","4",[[-81.874,35.184,-81.969,35.187,-81.969,35.258,-82.115,35.387,-82.261,35.393,-82.27,35.4,-82.28,35.446,-82.267,35.466,-82.169,35.528,-82.003,35.552,-81.974,35.525,-81.824,35.575,-81.692,35.58,-81.703,35.357,-81.768,35.18,-81.858,35.183,-81.874,35.184]]],["Sampson","NC","3",[[-78.391,35.263,-78.333,35.279,-78.305,35.286,-78.164,35.189,-78.165,35.179,-78.147,34.902,-78.2,34.737,-78.113,34.722,-78.255,34.554,-78.495,34.856,-78.495,34.858,-78.495,34.859,-78.497,34.859,-78.499,34.859,-78.502,34.862,-78.503,34.865,-78.506,34.865,-78.507,34.867,-78.512,34.868,-78.513,34.869,-78.513,34.873,-78.515,34.874,-78.515,34.876,-78.514,34.876,-78.513,34.881,-78.514,34.881,-78.514,34.882,-78.516,34.882,-78.516,34.883,-78.518,34.884,-78.52,34.884,-78.519,34.883,-78.521,34.883,-78.523,34.884,-78.648,34.995,-78.67,35.093,-78.617,35.246,-78.541,35.315,-78.491,35.263,-78.391,35.263]]],["Scotland","NC","3",[[-79.462,34.63,-79.469,34.635,-79.472,34.637,-79.479,34.645,-79.49,34.654,-79.519,34.677,-79.52,34.678,-79.554,34.706,-79.562,34.712,-79.632,34.769,-79.634,34.771,-79.688,34.805,-79.69,34.805,-79.693,34.805,-79.562,34.91,-79.573,34.992,-79.459,35.043,-79.354,34.946,-79.349,34.838,-79.359,34.743,-79.364,34.738,-79.462,34.63]]],["Stanly","NC","3",[[-80.428,35.167,-80.439,35.162,-80.468,35.167,-80.483,35.18,-80.505,35.184,-80.295,35.503,-80.183,35.504,-80.052,35.373,-80.098,35.255,-80.075,35.143,-80.174,35.148,-80.277,35.196,-80.428,35.167]]],["Stokes","NC","4",[[-80.053,36.543,-80.027,36.542,-80.033,36.345,-80.036,36.257,-80.452,36.262,-80.44,36.551,-80.433,36.55,-80.432,36.55,-80.228,36.544,-80.225,36.544,-80.172,36.543,-80.17,36.543,-80.053,36.543]]],["Surry","NC","4",[[-80.838,36.559,-80.838,36.559,-80.837,36.559,-80.744,36.562,-80.688,36.561,-80.612,36.558,-80.44,36.551,-80.452,36.262,-80.452,36.242,-80.452,36.241,-80.452,36.241,-80.547,36.285,-80.653,36.253,-80.873,36.236,-80.869,36.327,-80.967,36.402,-80.975,36.453,-80.902,36.562,-80.902,36.562,-80.838,36.559]]],["Swain","NC","4",[[-83.663,35.569,-83.64,35.566,-83.498,35.563,-83.486,35.568,-83.481,35.577,-83.479,35.579,-83.479,35.583,-83.446,35.612,-83.367,35.639,-83.297,35.658,-83.254,35.696,-83.182,35.671,-83.186,35.515,-83.351,35.468,-83.34,35.331,-83.68,35.279,-83.586,35.435,-83.953,35.461,-83.934,35.472,-83.88,35.519,-83.757,35.564,-83.676,35.57,-83.663,35.569]]],["Transylvania","NC","4",[[-82.764,35.068,-82.782,35.067,-82.781,35.069,-82.779,35.074,-82.777,35.077,-82.781,35.084,-82.781,35.085,-82.897,35.056,-83.008,35.027,-83.055,35.054,-82.983,35.132,-82.921,35.292,-82.832,35.318,-82.745,35.423,-82.62,35.304,-82.574,35.144,-82.58,35.142,-82.582,35.142,-82.686,35.122,-82.687,35.12,-82.764,35.068]]],["Tyrrell","NC","3",[[-76.046,35.666,-76.144,35.703,-76.214,35.598,-76.298,35.609,-76.269,35.691,-76.395,35.697,-76.406,35.785,-76.353,35.861,-76.365,35.945,-76.363,35.942,-76.34,35.943,-76.318,35.947,-76.272,35.973,-76.214,35.988,-76.177,35.993,-76.094,35.993,-76.083,35.99,-76.062,35.993,-76.024,35.971,-76.015,35.96,-76.014,35.957,-76.02,35.934,-76.012,35.914,-76.005,35.905,-75.999,35.904,-76.046,35.666]]],["Union","NC","3",[[-80.562,34.817,-80.562,34.817,-80.621,34.818,-80.626,34.818,-80.626,34.818,-80.645,34.819,-80.647,34.819,-80.772,34.82,-80.778,34.82,-80.797,34.825,-80.782,34.936,-80.806,34.963,-80.807,34.963,-80.84,35.002,-80.77,35.034,-80.55,35.208,-80.506,35.185,-80.505,35.184,-80.483,35.18,-80.468,35.167,-80.439,35.162,-80.428,35.167,-80.277,35.196,-80.32,34.814,-80.4,34.815,-80.417,34.816,-80.418,34.816,-80.42,34.816,-80.426,34.816,-80.435,34.816,-80.449,34.816,-80.452,34.816,-80.486,34.817,-80.562,34.817]]],["Vance","NC","4",[[-78.496,36.175,-78.509,36.183,-78.51,36.241,-78.511,36.268,-78.511,36.31,-78.511,36.431,-78.457,36.542,-78.441,36.543,-78.436,36.543,-78.324,36.544,-78.288,36.358,-78.307,36.266,-78.422,36.164,-78.496,36.175]]],["Wake","NC","4",[[-78.255,35.818,-78.474,35.702,-78.567,35.629,-78.709,35.519,-78.913,35.583,-78.995,35.61,-78.971,35.676,-78.909,35.843,-78.906,35.868,-78.832,35.867,-78.698,36.012,-78.749,36.071,-78.546,36.022,-78.307,35.897,-78.255,35.818]]],["Warren","NC","4",[[-78.046,36.544,-78.039,36.544,-78.039,36.544,-77.9,36.545,-77.899,36.518,-77.898,36.507,-77.912,36.382,-78.007,36.203,-78.133,36.246,-78.307,36.266,-78.288,36.358,-78.324,36.544,-78.247,36.544,-78.245,36.544,-78.133,36.544,-78.133,36.544,-78.046,36.544]]],["Washington","NC","3",[[-76.692,35.945,-76.692,35.945,-76.674,35.935,-76.668,35.934,-76.657,35.935,-76.608,35.937,-76.604,35.94,-76.587,35.942,-76.529,35.944,-76.507,35.95,-76.497,35.955,-76.474,35.961,-76.461,35.97,-76.398,35.984,-76.39,35.98,-76.382,35.972,-76.381,35.963,-76.365,35.945,-76.353,35.861,-76.406,35.785,-76.395,35.697,-76.546,35.705,-76.638,35.705,-76.845,35.705,-76.761,35.865,-76.692,35.945]]],["Watauga","NC","5",[[-81.726,36.34,-81.721,36.388,-81.566,36.272,-81.477,36.24,-81.456,36.2,-81.545,36.117,-81.812,36.112,-81.909,36.216,-81.918,36.287,-81.908,36.302,-81.855,36.337,-81.801,36.358,-81.794,36.36,-81.79,36.348,-81.765,36.339,-81.748,36.337,-81.731,36.341,-81.726,36.34]]],["Wayne","NC","3",[[-77.806,35.37,-77.831,35.233,-77.834,35.178,-77.893,35.147,-78.044,35.193,-78.164,35.189,-78.305,35.286,-78.153,35.351,-78.155,35.418,-78.065,35.585,-77.823,35.586,-77.824,35.499,-77.826,35.477,-77.827,35.431,-77.818,35.416,-77.806,35.407,-77.8,35.382,-77.803,35.373,-77.805,35.37,-77.806,35.37]]],["Wilkes","NC","4",[[-81.477,36.24,-81.379,36.278,-81.354,36.356,-81.253,36.365,-81.095,36.44,-81.014,36.371,-80.967,36.402,-80.869,36.327,-80.873,36.236,-80.882,36.056,-81.029,36.046,-81.191,36.037,-81.328,35.997,-81.545,36.117,-81.456,36.2,-81.477,36.24]]],["Wilson","NC","3",[[-78.192,35.73,-77.931,35.83,-77.928,35.832,-77.916,35.837,-77.828,35.867,-77.752,35.828,-77.661,35.677,-77.689,35.66,-77.701,35.652,-77.754,35.616,-77.802,35.586,-77.806,35.583,-77.809,35.584,-77.811,35.586,-77.816,35.588,-77.818,35.588,-77.822,35.585,-77.823,35.586,-78.065,35.585,-78.126,35.603,-78.192,35.73]]],["Yadkin","NC","4",[[-80.496,36.047,-80.693,36.051,-80.882,36.056,-80.873,36.236,-80.653,36.253,-80.547,36.285,-80.452,36.241,-80.44,36.137,-80.516,36.093,-80.496,36.047]]],["Yancey","NC","5",[[-82.463,36.007,-82.417,36.073,-82.338,36.03,-82.199,36.016,-82.133,35.824,-82.197,35.736,-82.275,35.704,-82.348,35.811,-82.409,35.818,-82.506,35.978,-82.487,35.992,-82.487,35.992,-82.463,36.007]]],["Abbeville","SC","3",[[-82.327,34.064,-82.531,34.072,-82.597,34.012,-82.641,34.088,-82.641,34.089,-82.652,34.1,-82.654,34.1,-82.659,34.103,-82.659,34.104,-82.668,34.12,-82.677,34.132,-82.704,34.141,-82.718,34.151,-82.732,34.178,-82.741,34.209,-82.314,34.484,-82.246,34.41,-82.334,34.343,-82.248,34.22,-82.267,34.108,-82.327,34.064]]],["Aiken","SC","3",[[-81.522,33.826,-81.415,33.732,-81.187,33.653,-81.373,33.491,-81.373,33.49,-81.375,33.49,-81.516,33.382,-81.757,33.198,-81.772,33.18,-81.852,33.247,-81.852,33.248,-81.903,33.331,-81.913,33.409,-81.958,33.469,-81.967,33.481,-82.007,33.523,-82.008,33.523,-82.014,33.53,-82.013,33.532,-81.652,33.815,-81.571,33.877,-81.569,33.872,-81.564,33.865,-81.561,33.863,-81.555,33.861,-81.552,33.861,-81.547,33.859,-81.541,33.852,-81.542,33.848,-81.541,33.846,-81.539,33.845,-81.538,33.841,-81.534,33.837,-81.534,33.832,-81.527,33.83,-81.523,33.827,-81.522,33.826]]],["Allendale","SC","3",[[-81.082,33.027,-81.237,32.94,-81.262,32.839,-81.405,32.745,-81.405,32.747,-81.424,32.811,-81.5,32.964,-81.495,32.979,-81.491,32.999,-81.497,33.01,-81.512,33.025,-81.542,33.046,-81.616,33.093,-81.542,33.158,-81.365,33.108,-81.193,33.119,-81.082,33.027]]],["Anderson","SC","3",[[-82.487,34.819,-82.454,34.625,-82.42,34.557,-82.314,34.484,-82.741,34.209,-82.742,34.21,-82.744,34.225,-82.743,34.227,-82.742,34.23,-82.755,34.276,-82.766,34.294,-82.849,34.424,-82.875,34.469,-82.874,34.472,-82.883,34.479,-82.903,34.486,-82.939,34.486,-82.98,34.483,-82.992,34.479,-82.84,34.623,-82.789,34.672,-82.487,34.819]]],["Bamberg","SC","3",[[-81.22,33.439,-80.949,33.308,-80.798,33.177,-81.082,33.027,-81.193,33.119,-81.228,33.161,-81.223,33.44,-81.222,33.439,-81.22,33.439]]],["Barnwell","SC","3",[[-81.772,33.18,-81.757,33.198,-81.516,33.382,-81.375,33.49,-81.373,33.49,-81.223,33.44,-81.228,33.161,-81.193,33.119,-81.365,33.108,-81.542,33.158,-81.616,33.093,-81.62,33.095,-81.697,33.117,-81.772,33.18]]],["Beaufort","SC","3",[[-80.826,32.704,-80.668,32.666,-80.66,32.613,-80.552,32.566,-80.477,32.485,-80.48,32.477,-80.485,32.461,-80.48,32.447,-80.468,32.425,-80.446,32.424,-80.433,32.411,-80.43,32.402,-80.429,32.39,-80.434,32.375,-80.445,32.35,-80.457,32.337,-80.455,32.326,-80.466,32.319,-80.518,32.299,-80.539,32.287,-80.546,32.282,-80.571,32.273,-80.596,32.274,-80.618,32.26,-80.639,32.256,-80.659,32.249,-80.669,32.217,-80.689,32.201,-80.721,32.16,-80.749,32.14,-80.79,32.122,-80.813,32.11,-80.822,32.109,-80.828,32.113,-80.832,32.113,-80.844,32.11,-80.859,32.1,-80.878,32.08,-81.016,32.242,-81.006,32.306,-80.935,32.3,-80.829,32.412,-80.87,32.661,-80.837,32.7,-80.826,32.704]]],["Berkeley","SC","3",[[-79.447,33.213,-79.519,33.148,-79.643,33.123,-79.855,32.874,-79.928,32.824,-79.949,32.908,-80.012,32.9,-80.055,33.0,-80.149,33.022,-80.28,33.119,-80.299,33.13,-80.362,33.257,-80.254,33.299,-80.222,33.444,-80.102,33.497,-79.972,33.501,-79.756,33.33,-79.677,33.305,-79.447,33.213]]],["Calhoun","SC","3",[[-81.012,33.88,-80.917,33.814,-80.747,33.762,-80.62,33.743,-80.534,33.644,-80.496,33.558,-80.552,33.565,-80.659,33.471,-80.808,33.604,-80.88,33.619,-80.94,33.609,-81.043,33.707,-80.926,33.756,-81.059,33.747,-81.012,33.88]]],["Charleston","SC","3",[[-79.447,33.213,-79.438,33.215,-79.414,33.198,-79.405,33.185,-79.269,33.136,-79.291,33.11,-79.292,33.11,-79.33,33.09,-79.337,33.072,-79.335,33.065,-79.339,33.05,-79.36,33.007,-79.404,33.004,-79.417,33.007,-79.423,33.015,-79.461,33.008,-79.483,33.001,-79.489,33.016,-79.507,33.033,-79.522,33.035,-79.558,33.021,-79.581,33.006,-79.587,32.991,-79.601,32.979,-79.607,32.972,-79.618,32.953,-79.618,32.945,-79.613,32.935,-79.606,32.926,-79.586,32.926,-79.582,32.931,-79.575,32.935,-79.573,32.934,-79.57,32.927,-79.576,32.906,-79.631,32.889,-79.655,32.873,-79.695,32.85,-79.699,32.84,-79.703,32.836,-79.72,32.826,-79.717,32.814,-79.726,32.806,-79.811,32.777,-79.818,32.766,-79.84,32.757,-79.849,32.755,-79.867,32.757,-79.872,32.752,-79.874,32.746,-79.868,32.735,-79.87,32.728,-79.888,32.695,-79.885,32.684,-79.916,32.665,-79.968,32.64,-79.975,32.64,-79.987,32.626,-79.992,32.616,-79.999,32.612,-80.011,32.609,-80.037,32.61,-80.077,32.603,-80.121,32.591,-80.148,32.578,-80.167,32.56,-80.172,32.546,-80.188,32.554,-80.194,32.554,-80.205,32.556,-80.246,32.531,-80.25,32.53,-80.353,32.5,-80.417,32.546,-80.39,32.648,-80.446,32.727,-80.401,32.858,-80.148,32.819,-80.159,32.83,-80.163,32.841,-80.174,32.846,-80.079,32.928,-80.149,33.022,-80.055,33.0,-80.012,32.9,-79.949,32.908,-79.928,32.824,-79.855,32.874,-79.643,33.123,-79.519,33.148,-79.447,33.213]]],["Cherokee","SC","3",[[-81.457,34.839,-81.482,34.866,-81.712,34.913,-81.755,34.933,-81.874,35.184,-81.858,35.183,-81.768,35.18,-81.494,35.17,-81.493,35.17,-81.461,35.169,-81.452,35.168,-81.367,35.165,-81.367,35.165,-81.41,35.046,-81.488,35.03,-81.457,34.839]]],["Chester","SC","3",[[-81.478,34.822,-80.898,34.821,-80.86,34.696,-80.896,34.632,-80.877,34.543,-80.95,34.545,-81.423,34.572,-81.478,34.822]]],["Chesterfield","SC","3",[[-80.289,34.366,-80.329,34.501,-80.408,34.615,-80.562,34.817,-80.562,34.817,-80.486,34.817,-80.452,34.816,-80.449,34.816,-80.435,34.816,-80.426,34.816,-80.42,34.816,-80.418,34.816,-80.417,34.816,-80.4,34.815,-80.32,34.814,-80.099,34.81,-80.098,34.81,-80.077,34.81,-80.073,34.81,-80.043,34.809,-80.027,34.809,-79.928,34.807,-79.872,34.694,-79.778,34.615,-79.83,34.532,-79.885,34.491,-80.045,34.493,-80.289,34.366]]],["Clarendon","SC","3",[[-80.534,33.644,-80.479,33.714,-80.392,33.716,-80.397,33.768,-80.256,33.804,-79.975,33.947,-79.946,33.886,-79.876,33.885,-79.996,33.768,-79.974,33.722,-80.102,33.497,-80.222,33.444,-80.355,33.43,-80.496,33.558,-80.534,33.644]]],["Colleton","SC","3",[[-80.477,32.485,-80.552,32.566,-80.66,32.613,-80.668,32.666,-80.826,32.704,-80.9,32.833,-81.082,33.027,-80.798,33.177,-80.796,33.177,-80.794,33.179,-80.793,33.18,-80.792,33.181,-80.79,33.181,-80.71,33.156,-80.622,33.066,-80.391,33.044,-80.401,32.858,-80.446,32.727,-80.39,32.648,-80.417,32.546,-80.353,32.5,-80.25,32.53,-80.278,32.516,-80.332,32.478,-80.338,32.479,-80.344,32.491,-80.364,32.496,-80.381,32.486,-80.387,32.479,-80.393,32.475,-80.413,32.471,-80.416,32.472,-80.418,32.476,-80.419,32.491,-80.423,32.498,-80.439,32.503,-80.452,32.497,-80.466,32.495,-80.472,32.497,-80.477,32.485]]],["Darlington","SC","3",[[-80.073,34.086,-80.131,34.129,-80.113,34.197,-80.177,34.366,-80.289,34.364,-80.287,34.365,-80.287,34.365,-80.289,34.366,-80.045,34.493,-79.885,34.491,-79.83,34.532,-79.722,34.485,-79.751,34.437,-79.685,34.4,-79.658,34.305,-79.883,34.204,-80.0,34.129,-80.073,34.086]]],["Dillon","SC","3",[[-79.548,34.231,-79.633,34.298,-79.45,34.621,-79.358,34.545,-79.331,34.522,-79.325,34.516,-79.323,34.515,-79.199,34.407,-79.192,34.401,-79.191,34.4,-79.151,34.367,-79.143,34.36,-79.071,34.299,-79.128,34.254,-79.38,34.301,-79.481,34.288,-79.548,34.231]]],["Dorchester","SC","3",[[-80.362,33.257,-80.299,33.13,-80.28,33.119,-80.149,33.022,-80.079,32.928,-80.174,32.846,-80.163,32.841,-80.159,32.83,-80.148,32.819,-80.401,32.858,-80.391,33.044,-80.622,33.066,-80.71,33.156,-80.79,33.181,-80.503,33.334,-80.485,33.28,-80.362,33.257]]],["Edgefield","SC","3",[[-81.652,33.815,-82.013,33.532,-82.014,33.53,-82.028,33.545,-82.046,33.564,-82.069,33.575,-82.099,33.586,-82.117,33.59,-82.096,33.634,-82.166,33.69,-82.172,33.766,-82.114,33.83,-82.156,33.929,-82.047,33.953,-82.008,33.962,-81.895,33.975,-81.837,33.867,-81.652,33.815]]],["Fairfield","SC","3",[[-80.826,34.269,-81.096,34.214,-81.178,34.175,-81.317,34.239,-81.423,34.494,-81.421,34.503,-81.425,34.524,-81.428,34.529,-81.424,34.556,-81.42,34.567,-81.423,34.572,-80.95,34.545,-80.877,34.543,-80.879,34.458,-80.77,34.377,-80.826,34.269]]],["Florence","SC","3",[[-79.544,34.22,-79.569,34.175,-79.515,34.097,-79.483,33.938,-79.324,33.799,-79.496,33.775,-79.798,33.836,-79.876,33.885,-79.946,33.886,-79.975,33.947,-79.894,33.988,-80.001,34.048,-80.073,34.086,-80.0,34.129,-79.883,34.204,-79.658,34.305,-79.644,34.301,-79.642,34.3,-79.635,34.301,-79.633,34.298,-79.548,34.231,-79.544,34.225,-79.544,34.22]]],["Georgetown","SC","3",[[-79.235,33.694,-79.209,33.703,-79.195,33.703,-79.199,33.71,-79.19,33.706,-79.101,33.572,-79.002,33.572,-79.007,33.567,-79.029,33.533,-79.041,33.524,-79.085,33.484,-79.101,33.461,-79.135,33.404,-79.147,33.378,-79.152,33.351,-79.158,33.333,-79.162,33.327,-79.18,33.254,-79.181,33.238,-79.172,33.207,-79.188,33.174,-79.196,33.166,-79.215,33.156,-79.238,33.137,-79.246,33.125,-79.291,33.11,-79.269,33.136,-79.405,33.185,-79.414,33.198,-79.438,33.215,-79.447,33.213,-79.677,33.305,-79.538,33.497,-79.436,33.573,-79.409,33.689,-79.317,33.78,-79.316,33.779,-79.314,33.776,-79.309,33.772,-79.307,33.766,-79.305,33.763,-79.301,33.759,-79.299,33.757,-79.295,33.754,-79.293,33.752,-79.293,33.75,-79.293,33.747,-79.294,33.744,-79.294,33.741,-79.29,33.739,-79.286,33.737,-79.286,33.736,-79.289,33.734,-79.291,33.732,-79.292,33.729,-79.288,33.724,-79.287,33.719,-79.286,33.718,-79.283,33.716,-79.281,33.716,-79.279,33.718,-79.272,33.722,-79.27,33.72,-79.269,33.718,-79.271,33.716,-79.275,33.714,-79.275,33.711,-79.275,33.709,-79.273,33.708,-79.272,33.709,-79.269,33.711,-79.267,33.711,-79.265,33.71,-79.265,33.707,-79.265,33.706,-79.268,33.704,-79.268,33.703,-79.261,33.704,-79.258,33.703,-79.25,33.703,-79.245,33.706,-79.243,33.706,-79.241,33.705,-79.24,33.704,-79.241,33.703,-79.242,33.702,-79.247,33.701,-79.25,33.699,-79.249,33.697,-79.246,33.695,-79.239,33.694,-79.235,33.694]]],["Greenville","SC","3",[[-82.193,34.686,-82.236,34.536,-82.314,34.484,-82.42,34.557,-82.454,34.625,-82.487,34.819,-82.538,35.016,-82.589,35.074,-82.764,35.068,-82.687,35.12,-82.686,35.122,-82.582,35.142,-82.58,35.142,-82.574,35.144,-82.537,35.159,-82.536,35.159,-82.517,35.163,-82.517,35.163,-82.476,35.175,-82.384,35.211,-82.352,35.207,-82.288,35.199,-82.258,35.199,-82.231,35.197,-82.231,35.197,-82.216,35.196,-82.226,34.85,-82.147,34.786,-82.193,34.686]]],["Greenwood","SC","3",[[-81.87,34.135,-82.008,33.962,-82.047,33.953,-82.045,33.983,-82.2,33.979,-82.245,34.019,-82.306,33.972,-82.327,34.064,-82.267,34.108,-82.248,34.22,-82.334,34.343,-82.246,34.41,-82.169,34.331,-81.945,34.203,-81.87,34.135]]],["Hampton","SC","3",[[-80.826,32.704,-80.837,32.7,-80.87,32.661,-80.902,32.622,-81.015,32.753,-81.287,32.545,-81.318,32.56,-81.329,32.561,-81.348,32.569,-81.389,32.595,-81.389,32.595,-81.412,32.618,-81.419,32.629,-81.418,32.635,-81.415,32.637,-81.405,32.745,-81.262,32.839,-81.237,32.94,-81.082,33.027,-80.9,32.833,-80.826,32.704]]],["Horry","SC","3",[[-79.002,33.572,-79.101,33.572,-79.19,33.706,-79.339,33.97,-79.127,34.235,-79.135,34.241,-79.128,34.254,-79.071,34.299,-78.712,33.997,-78.71,33.995,-78.65,33.944,-78.541,33.851,-78.554,33.848,-78.585,33.844,-78.672,33.818,-78.714,33.8,-78.773,33.769,-78.813,33.743,-78.863,33.706,-78.938,33.64,-79.002,33.572]]],["Jasper","SC","3",[[-80.878,32.08,-80.905,32.052,-80.892,32.044,-80.886,32.035,-81.004,32.072,-81.043,32.085,-81.062,32.088,-81.113,32.113,-81.117,32.118,-81.122,32.162,-81.125,32.227,-81.128,32.276,-81.12,32.286,-81.122,32.305,-81.134,32.342,-81.141,32.349,-81.168,32.368,-81.199,32.467,-81.275,32.539,-81.287,32.545,-81.015,32.753,-80.902,32.622,-80.87,32.661,-80.829,32.412,-80.935,32.3,-81.006,32.306,-81.016,32.242,-80.878,32.08]]],["Kershaw","SC","3",[[-80.48,34.169,-80.578,34.102,-80.604,34.102,-80.619,34.109,-80.616,34.1,-80.636,34.098,-80.64,34.096,-80.647,34.094,-80.658,34.089,-80.659,34.086,-80.673,34.084,-80.676,34.085,-80.684,34.082,-80.693,34.081,-80.719,34.069,-80.87,34.182,-80.826,34.269,-80.77,34.377,-80.879,34.458,-80.743,34.54,-80.74,34.48,-80.524,34.51,-80.551,34.56,-80.408,34.615,-80.329,34.501,-80.289,34.366,-80.287,34.365,-80.287,34.365,-80.289,34.364,-80.422,34.294,-80.48,34.169]]],["Lancaster","SC","3",[[-80.906,35.077,-80.84,35.002,-80.807,34.963,-80.806,34.963,-80.782,34.936,-80.797,34.825,-80.778,34.82,-80.772,34.82,-80.647,34.819,-80.645,34.819,-80.626,34.818,-80.626,34.818,-80.621,34.818,-80.562,34.817,-80.408,34.615,-80.551,34.56,-80.524,34.51,-80.74,34.48,-80.743,34.54,-80.879,34.458,-80.877,34.543,-80.896,34.632,-80.86,34.696,-80.898,34.821,-80.869,34.951,-80.906,35.077]]],["Laurens","SC","3",[[-82.314,34.484,-82.236,34.536,-82.193,34.686,-82.147,34.786,-82.012,34.669,-81.854,34.595,-81.644,34.534,-81.783,34.365,-81.896,34.3,-81.945,34.203,-82.169,34.331,-82.246,34.41,-82.314,34.484]]],["Lee","SC","3",[[-80.269,34.035,-80.278,34.037,-80.279,34.037,-80.279,34.037,-80.322,34.08,-80.481,34.113,-80.48,34.169,-80.422,34.294,-80.289,34.364,-80.177,34.366,-80.113,34.197,-80.131,34.129,-80.073,34.086,-80.001,34.048,-80.18,33.952,-80.269,34.035]]],["Lexington","SC","3",[[-81.339,34.198,-81.276,34.097,-81.154,34.078,-81.06,34.005,-81.012,33.88,-81.059,33.747,-80.926,33.756,-81.043,33.707,-81.087,33.695,-81.187,33.653,-81.415,33.732,-81.522,33.826,-81.523,33.827,-81.527,33.83,-81.534,33.832,-81.534,33.837,-81.538,33.841,-81.539,33.845,-81.541,33.846,-81.542,33.848,-81.541,33.852,-81.547,33.859,-81.552,33.861,-81.555,33.861,-81.561,33.863,-81.564,33.865,-81.569,33.872,-81.571,33.877,-81.472,34.077,-81.389,34.08,-81.437,34.13,-81.339,34.198]]],["Marion","SC","3",[[-79.544,34.22,-79.544,34.225,-79.548,34.231,-79.481,34.288,-79.38,34.301,-79.128,34.254,-79.135,34.241,-79.127,34.235,-79.339,33.97,-79.19,33.706,-79.199,33.71,-79.195,33.703,-79.209,33.703,-79.235,33.694,-79.239,33.694,-79.246,33.695,-79.249,33.697,-79.25,33.699,-79.247,33.701,-79.242,33.702,-79.241,33.703,-79.24,33.704,-79.241,33.705,-79.243,33.706,-79.245,33.706,-79.25,33.703,-79.258,33.703,-79.261,33.704,-79.268,33.703,-79.268,33.704,-79.265,33.706,-79.265,33.707,-79.265,33.71,-79.267,33.711,-79.269,33.711,-79.272,33.709,-79.273,33.708,-79.275,33.709,-79.275,33.711,-79.275,33.714,-79.271,33.716,-79.269,33.718,-79.27,33.72,-79.272,33.722,-79.279,33.718,-79.281,33.716,-79.283,33.716,-79.286,33.718,-79.287,33.719,-79.288,33.724,-79.292,33.729,-79.291,33.732,-79.289,33.734,-79.286,33.736,-79.286,33.737,-79.29,33.739,-79.294,33.741,-79.294,33.744,-79.293,33.747,-79.293,33.75,-79.293,33.752,-79.295,33.754,-79.299,33.757,-79.301,33.759,-79.305,33.763,-79.307,33.766,-79.309,33.772,-79.314,33.776,-79.316,33.779,-79.317,33.78,-79.32,33.785,-79.323,33.789,-79.32,33.791,-79.324,33.795,-79.324,33.799,-79.483,33.938,-79.515,34.097,-79.569,34.175,-79.544,34.22]]],["Marlboro","SC","3",[[-79.744,34.806,-79.693,34.805,-79.69,34.805,-79.688,34.805,-79.634,34.771,-79.632,34.769,-79.562,34.712,-79.554,34.706,-79.52,34.678,-79.519,34.677,-79.49,34.654,-79.479,34.645,-79.472,34.637,-79.469,34.635,-79.462,34.63,-79.461,34.63,-79.46,34.629,-79.45,34.621,-79.633,34.298,-79.635,34.301,-79.642,34.3,-79.644,34.301,-79.658,34.305,-79.685,34.4,-79.751,34.437,-79.722,34.485,-79.83,34.532,-79.778,34.615,-79.872,34.694,-79.928,34.807,-79.774,34.806,-79.773,34.806,-79.745,34.806,-79.744,34.806]]],["McCormick","SC","3",[[-82.047,33.953,-82.156,33.929,-82.114,33.83,-82.172,33.766,-82.166,33.69,-82.096,33.634,-82.117,33.59,-82.125,33.591,-82.129,33.59,-82.135,33.591,-82.18,33.616,-82.197,33.631,-82.219,33.686,-82.247,33.753,-82.301,33.802,-82.324,33.82,-82.404,33.865,-82.408,33.866,-82.423,33.864,-82.429,33.866,-82.564,33.956,-82.565,33.956,-82.597,34.012,-82.531,34.072,-82.327,34.064,-82.306,33.972,-82.245,34.019,-82.2,33.979,-82.045,33.983,-82.047,33.953]]],["Newberry","SC","3",[[-81.339,34.198,-81.437,34.13,-81.389,34.08,-81.472,34.077,-81.539,34.082,-81.732,34.188,-81.861,34.179,-81.87,34.135,-81.945,34.203,-81.896,34.3,-81.783,34.365,-81.644,34.534,-81.54,34.445,-81.423,34.494,-81.317,34.239,-81.345,34.205,-81.339,34.198]]],["Oconee","SC","3",[[-82.897,35.056,-82.916,34.972,-82.9,34.742,-82.84,34.623,-82.992,34.479,-82.993,34.479,-82.995,34.475,-83.007,34.474,-83.035,34.483,-83.052,34.493,-83.073,34.504,-83.087,34.516,-83.107,34.534,-83.17,34.592,-83.171,34.599,-83.168,34.6,-83.241,34.624,-83.241,34.625,-83.292,34.653,-83.338,34.688,-83.338,34.688,-83.351,34.702,-83.351,34.713,-83.351,34.714,-83.352,34.716,-83.352,34.716,-83.339,34.741,-83.324,34.789,-83.283,34.821,-83.267,34.833,-83.243,34.878,-83.143,34.925,-83.109,35.001,-83.008,35.027,-82.897,35.056]]],["Orangeburg","SC","3",[[-81.22,33.439,-81.222,33.439,-81.223,33.44,-81.373,33.49,-81.373,33.491,-81.187,33.653,-81.087,33.695,-81.043,33.707,-80.94,33.609,-80.88,33.619,-80.808,33.604,-80.659,33.471,-80.552,33.565,-80.496,33.558,-80.355,33.43,-80.222,33.444,-80.254,33.299,-80.362,33.257,-80.485,33.28,-80.503,33.334,-80.79,33.181,-80.792,33.181,-80.793,33.18,-80.794,33.179,-80.796,33.177,-80.798,33.177,-80.949,33.308,-81.22,33.439]]],["Pickens","SC","3",[[-82.764,35.068,-82.589,35.074,-82.538,35.016,-82.487,34.819,-82.789,34.672,-82.84,34.623,-82.9,34.742,-82.916,34.972,-82.897,35.056,-82.781,35.085,-82.781,35.084,-82.777,35.077,-82.779,35.074,-82.781,35.069,-82.782,35.067,-82.764,35.068]]],["Richland","SC","3",[[-80.747,33.762,-80.917,33.814,-81.012,33.88,-81.06,34.005,-81.154,34.078,-81.276,34.097,-81.339,34.198,-81.345,34.205,-81.317,34.239,-81.178,34.175,-81.096,34.214,-80.826,34.269,-80.87,34.182,-80.719,34.069,-80.693,34.081,-80.684,34.082,-80.676,34.085,-80.673,34.084,-80.659,34.086,-80.658,34.089,-80.647,34.094,-80.64,34.096,-80.636,34.098,-80.616,34.1,-80.634,33.853,-80.62,33.743,-80.747,33.762]]],["Saluda","SC","3",[[-81.571,33.877,-81.652,33.815,-81.837,33.867,-81.895,33.975,-82.008,33.962,-81.87,34.135,-81.861,34.179,-81.732,34.188,-81.539,34.082,-81.472,34.077,-81.571,33.877]]],["Spartanburg","SC","3",[[-82.012,34.669,-82.147,34.786,-82.226,34.85,-82.216,35.196,-82.195,35.195,-82.186,35.194,-82.177,35.194,-82.168,35.194,-81.969,35.187,-81.874,35.184,-81.755,34.933,-81.712,34.913,-81.783,34.837,-81.854,34.595,-82.012,34.669]]],["Sumter","SC","3",[[-80.269,34.035,-80.18,33.952,-80.001,34.048,-79.894,33.988,-79.975,33.947,-80.256,33.804,-80.397,33.768,-80.392,33.716,-80.479,33.714,-80.534,33.644,-80.62,33.743,-80.634,33.853,-80.616,34.1,-80.619,34.109,-80.604,34.102,-80.578,34.102,-80.48,34.169,-80.481,34.113,-80.322,34.08,-80.279,34.037,-80.279,34.037,-80.278,34.037,-80.269,34.035]]],["Union","SC","3",[[-81.854,34.595,-81.783,34.837,-81.712,34.913,-81.482,34.866,-81.457,34.839,-81.462,34.831,-81.478,34.822,-81.423,34.572,-81.42,34.567,-81.424,34.556,-81.428,34.529,-81.425,34.524,-81.421,34.503,-81.423,34.494,-81.54,34.445,-81.644,34.534,-81.854,34.595]]],["Williamsburg","SC","3",[[-79.324,33.799,-79.324,33.795,-79.32,33.791,-79.323,33.789,-79.32,33.785,-79.317,33.78,-79.409,33.689,-79.436,33.573,-79.538,33.497,-79.677,33.305,-79.756,33.33,-79.972,33.501,-80.102,33.497,-79.974,33.722,-79.996,33.768,-79.876,33.885,-79.798,33.836,-79.496,33.775,-79.324,33.799]]],["York","SC","3",[[-81.033,35.109,-81.036,35.103,-81.047,35.101,-81.052,35.096,-81.057,35.086,-81.058,35.073,-81.057,35.062,-81.041,35.045,-80.958,35.093,-80.935,35.107,-80.907,35.077,-80.906,35.077,-80.869,34.951,-80.898,34.821,-81.478,34.822,-81.462,34.831,-81.457,34.839,-81.488,35.03,-81.41,35.046,-81.367,35.165,-81.328,35.163,-81.269,35.161,-81.242,35.16,-81.239,35.16,-81.09,35.153,-81.043,35.148,-81.043,35.146,-81.033,35.109]]]];
+  const fmtOpt = o => o[0] && o[1] ? `R${o[0]} + R${o[1]} ci` : o[0] ? `R${o[0]} cavity` : `R${o[1]} ci only`;
+
+  const store = {
+    get(k,d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+    set(k,v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+  };
+  let uid = Date.now();
+  const nid = () => 'i' + (uid++);
+  const today = () => new Date().toISOString().slice(0,10);
+
+  function blankJob(){
+    return {
+      job:{customer:'',address:'',measuredBy:'',date:today(),county:'',zone:'',code:'2021',ci:'0',lat:'',lon:''},
+      energyStar:'no', esVer:'3.2',
+      height:9, gap:15, notes:'', chips:[],
+      lines:[
+        {id:nid(),area:'Exterior walls',r:'R15',type:'ext',count:'',h:''},
+        {id:nid(),area:'2x6 walls',r:'R19',type:'ext',count:'',h:''},
+        {id:nid(),area:'Garage door interior walls',r:'R13',type:'garage',count:'',h:''}
+      ],
+      blocks:[]
+    };
+  }
+  let S = (()=>{ const d = store.get('fm-draft', null), b = blankJob(); if (!d) return b; return Object.assign(b, d, {job:Object.assign(b.job, d.job||{})}); })();
+  if (!COUNTIES.some(c => countyKey(c) === S.job.county)) S.job.county = '';
+  let mailTo = store.get('fm-mailto', '');
+  function countyKey(c){ return `${c[0]} County, ${c[1]}`; }
+  function effective(){
+    if (S.energyStar === 'yes') return S.esVer === '3.1'
+      ? {table:'2018', label:'ENERGY STAR v3.1 (2012 IECC levels)'}
+      : {table:'2021', label:'ENERGY STAR v3.2 (2021 IECC levels)'};
+    return {table:S.job.code, label:`${S.job.code} IECC`};
+  }
+
+  const $ = id => document.getElementById(id);
+  const num = v => { const n = parseFloat(v); return isFinite(n) ? n : 0; };
+  const fmt = n => (Math.round(n*100)/100).toLocaleString(undefined,{maximumFractionDigits:2});
+  const esc = s => String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const save = () => store.set('fm-draft', S);
+
+  function lineSqft(l){
+    const h = l.h !== '' && l.h != null ? num(l.h) : num(S.height);
+    return { per: h * num(S.gap) / 12, total: num(l.count) * h * num(S.gap) / 12, h };
+  }
+  const blockSqft = b => num(b.qty || 1) * num(b.w) / 12 * num(b.h);
+
+  function check(l){
+    if (l.type === 'int') return {cls:'na', text:'No energy-code minimum (interior)'};
+    const opts = CODE[effective().table][S.job.zone];
+    if (!opts) return {cls:'na', text:'Pick a county to check'};
+    const r = num(String(l.r).replace(/\D/g,'')), ci = num(S.job.ci);
+    if (opts.some(o => r >= o[0] && ci >= o[1])) return {cls:'ok', text:'Meets code'};
+    const viaCi = opts.find(o => r >= o[0] && o[1] > ci);
+    if (viaCi) return {cls:'warn', text:`Needs R${viaCi[1]} continuous insulation with this cavity`};
+    return {cls:'bad', text:`Below minimum (${opts.map(fmtOpt).join(' or ')})`};
+  }
+
+  /* ---------- rendering ---------- */
+  function renderCountyOptions(){
+    const sel = $('county');
+    const group = st => COUNTIES.filter(c=>c[1]===st).map(c=>`<option value="${esc(countyKey(c))}">${esc(c[0])} (Zone ${c[2]}A)</option>`).join('');
+    sel.innerHTML = '<option value="">Select county</option>' +
+      `<optgroup label="North Carolina">${group('NC')}</optgroup><optgroup label="South Carolina">${group('SC')}</optgroup>`;
+    sel.value = S.job.county || '';
+  }
+  function setCounty(key){
+    const c = COUNTIES.find(x => countyKey(x) === key);
+    S.job.county = c ? key : '';
+    S.job.zone = c ? c[2] : ''; $('zone').value = S.job.zone;
+    $('county').value = S.job.county;
+  }
+  function inRing(lon, lat, r){
+    let inside = false;
+    for (let i = 0, j = r.length - 2; i < r.length; j = i, i += 2){
+      const xi = r[i], yi = r[i+1], xj = r[j], yj = r[j+1];
+      if ((yi > lat) !== (yj > lat) && lon < (xj - xi) * (lat - yi) / (yj - yi) + xi) inside = !inside;
+    }
+    return inside;
+  }
+  function countyAt(lat, lon){ return COUNTIES.find(c => c[3].some(r => inRing(lon, lat, r))); }
+  function renderGps(msg){
+    const j = S.job;
+    if (msg){ $('gpsStatus').textContent = msg; return; }
+    if (j.lat && j.lon){
+      $('gpsStatus').innerHTML = `Location saved: ${(+j.lat).toFixed(5)}, ${(+j.lon).toFixed(5)}. <a href="https://www.google.com/maps?q=${j.lat},${j.lon}" target="_blank" rel="noopener">View on map</a> <button type="button" class="linkbtn" id="gpsClear">Clear</button>`;
+    } else $('gpsStatus').textContent = '';
+  }
+  function renderEs(){
+    document.querySelectorAll('[data-es]').forEach(b => b.setAttribute('aria-pressed', String(b.dataset.es === S.energyStar)));
+    $('esVerWrap').hidden = S.energyStar !== 'yes';
+    $('esVer').value = S.esVer;
+    $('code').disabled = S.energyStar === 'yes';
+    const v = S.esVer === '3.1' ? '2012 IECC' : '2021 IECC';
+    $('esList').innerHTML = S.energyStar === 'yes' ? [
+      `R-values are checked against ${v} levels instead of the energy code selected above.`,
+      'Insulation must be installed to RESNET Grade I: full fill, no gaps, voids or compression.',
+      'The HERS rater inspects before drywall, so the crew needs to know the inspection date.',
+      'Air sealing at top plates, penetrations and rim joists is on the thermal enclosure checklist.'
+    ].map(t=>`<li>${esc(t)}</li>`).join('') : '';
+  }
+
+  function renderLines(){
+    $('countRows').innerHTML = S.lines.map(l=>`<div class="row count" data-id="${l.id}">
+      <div class="c-area"><label>Area</label><input data-f="area" value="${esc(l.area)}" placeholder="e.g. Bonus room walls"></div>
+      <div class="c-type"><label>Type</label><select data-f="type">${Object.entries(TYPES).map(([k,v])=>`<option value="${k}" ${k===l.type?'selected':''}>${v}</option>`).join('')}</select></div>
+      <div class="c-r"><label>R-value</label><select data-f="r">${R_OPTIONS.map(r=>`<option ${r===l.r?'selected':''}>${r}</option>`).join('')}</select></div>
+      <div class="c-count"><label>Count</label><input data-f="count" type="number" inputmode="numeric" min="0" step="1" value="${esc(l.count)}" placeholder="0"></div>
+      <div class="c-h"><label>Height</label><input data-f="h" type="number" inputmode="decimal" min="0" step="0.25" value="${esc(l.h)}" placeholder="${esc(S.height)}"></div>
+      <button type="button" class="x c-x" aria-label="Remove area" data-rm="line">×</button>
+      <div class="meta"><span class="out" data-out></span><span data-tag></span></div>
+    </div>`).join('') || '<p class="hint">No areas yet. Add one to start counting.</p>';
+  }
+  function renderBlocks(){
+    $('blockRows').innerHTML = S.blocks.map(b=>`<div class="row block" data-id="${b.id}">
+      <div class="c-label"><label>Where</label><input data-f="label" value="${esc(b.label)}" placeholder="Above garage door header"></div>
+      <div class="c-w"><label>Width (in)</label><input data-f="w" type="number" inputmode="decimal" min="0" value="${esc(b.w)}" placeholder="16"></div>
+      <div class="c-bh"><label>Height (ft)</label><input data-f="h" type="number" inputmode="decimal" min="0" value="${esc(b.h)}" placeholder="2"></div>
+      <div class="c-q"><label>Qty</label><input data-f="qty" type="number" inputmode="numeric" min="1" value="${esc(b.qty)}" placeholder="1"></div>
+      <button type="button" class="x c-x" aria-label="Remove blocked area" data-rm="block">×</button>
+      <div class="meta"><span class="out" data-out></span></div>
+    </div>`).join('') || '<p class="hint">None noted. Add any odd-sized spots the installers need to fill.</p>';
+  }
+  function renderChips(){
+    $('noteChips').innerHTML = NOTE_CHIPS.map(c=>`<button type="button" class="chip" aria-pressed="${S.chips.includes(c)}" data-chip="${esc(c)}">${esc(c)}</button>`).join('');
+  }
+
+  function update(){
+    const per = num(S.height) * num(S.gap) / 12;
+    $('perGap').textContent = fmt(per);
+    $('perGapMath').textContent = `${fmt(num(S.height))} ft tall × ${fmt(num(S.gap))} in (${fmt(num(S.gap)/12)} ft) wide`;
+    document.querySelectorAll('[data-gap]').forEach(b => b.setAttribute('aria-pressed', String(num(b.dataset.gap) === num(S.gap))));
+
+    // requirement box
+    const eff = effective(), opts = CODE[eff.table][S.job.zone];
+    $('reqBox').innerHTML = opts
+      ? `<strong>Zone ${esc(S.job.zone)} wall minimum (${esc(eff.label)}, wood frame):</strong> ${opts.map(fmtOpt).join(' or ')}. Check local amendments before quoting.`
+      : 'Pick a county to check each R-value against the energy code.';
+
+    const byR = {}; let total = 0, gaps = 0;
+    S.lines.forEach(l=>{
+      const el = document.querySelector(`.row[data-id="${l.id}"]`);
+      const c = lineSqft(l);
+      total += c.total; gaps += num(l.count);
+      if (num(l.count)) { byR[l.r] = byR[l.r] || {n:0, sq:0}; byR[l.r].n += num(l.count); byR[l.r].sq += c.total; }
+      if (el){
+        el.querySelector('[data-out]').textContent = `${fmt(num(l.count))} × ${fmt(c.per)} sq ft = ${fmt(c.total)} sq ft`;
+        const k = check(l);
+        el.querySelector('[data-tag]').innerHTML = `<span class="tag ${k.cls}">${esc(k.text)}</span>`;
+      }
+    });
+    let blockTotal = 0;
+    S.blocks.forEach(b=>{
+      const el = document.querySelector(`.row[data-id="${b.id}"]`);
+      const sq = blockSqft(b); blockTotal += sq;
+      if (el) el.querySelector('[data-out]').textContent = `${fmt(num(b.qty||1))} × ${fmt(num(b.w))}″ × ${fmt(num(b.h))}′ = ${fmt(sq)} sq ft`;
+    });
+    total += blockTotal;
+
+    const rows = Object.entries(byR).sort((a,b)=>num(a[0].slice(1))-num(b[0].slice(1)))
+      .map(([r,v])=>`<tr><td>${r}</td><td class="num">${fmt(v.n)}</td><td class="num">${fmt(v.sq)}</td></tr>`);
+    if (blockTotal) rows.push(`<tr><td>Blocked areas</td><td class="num">${fmt(S.blocks.reduce((a,b)=>a+num(b.qty||1),0))}</td><td class="num">${fmt(blockTotal)}</td></tr>`);
+    $('byR').innerHTML = rows.join('') || '<tr><td colspan="3" class="hint">Enter counts to see totals.</td></tr>';
+    $('grand').textContent = fmt(total) + ' sq ft';
+    $('barTotal').textContent = fmt(total) + ' sq ft';
+    $('barSub').textContent = gaps ? `${fmt(gaps)} gaps${S.blocks.length ? ` + ${S.blocks.length} blocked area${S.blocks.length>1?'s':''}` : ''}` : 'No counts yet';
+    const text = buildSummary(total, byR, blockTotal);
+    $('summary').textContent = text;
+    const j = S.job;
+    const subject = `Quote request: ${j.customer || 'New job'}${j.siteNumber ? ' - Site ' + j.siteNumber : ''}${j.address ? ' - ' + j.address : ''} (${fmt(total)} sq ft)`;
+    const to = mailTo.split(/[,;\s]+/).filter(Boolean).map(s=>s.replace(/[?&#]/g,'')).join(',');
+    const mb = $('mailBtn');
+    mb.href = `mailto:${to}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(text)}`;
+    mb.setAttribute('aria-disabled', String(!to));
+    save();
+  }
+
+  function buildSummary(total, byR, blockTotal){
+    const j = S.job, L = [];
+    L.push('QUOTE REQUEST: FIELD MEASURE');
+    L.push(`Customer: ${j.customer || '-'}`);
+    L.push(`Address: ${j.address || '-'}`);
+    L.push(`Plan: ${j.planName || '-'}    Site #: ${j.siteNumber || '-'}`);
+    if (j.lat && j.lon) L.push(`GPS: ${(+j.lat).toFixed(5)}, ${(+j.lon).toFixed(5)}  https://www.google.com/maps?q=${j.lat},${j.lon}`);
+    L.push(`Measured by: ${j.measuredBy || '-'}    Date: ${j.date || '-'}`);
+    L.push(`County: ${j.county || '-'}    Climate zone: ${j.zone || '-'}    Checked against: ${effective().label}${num(j.ci) ? `    ci: R${j.ci}` : ''}`);
+    L.push(`ENERGY STAR: ${S.energyStar === 'yes' ? `Yes (v${S.esVer}) - Grade I install, rater pre-drywall inspection` : 'No'}`);
+    L.push('');
+    L.push(`Wall height ${fmt(num(S.height))} ft, gap ${fmt(num(S.gap))} in = ${fmt(num(S.height)*num(S.gap)/12)} sq ft per gap`);
+    L.push('');
+    L.push('FIELD COUNTS');
+    S.lines.filter(l=>num(l.count)).forEach(l=>{
+      const c = lineSqft(l), k = check(l);
+      L.push(`- ${l.area || 'Unnamed area'} (${l.r}, ${TYPES[l.type]}): ${fmt(num(l.count))} x ${fmt(c.per)} sq ft = ${fmt(c.total)} sq ft${l.h!==''&&l.h!=null?` [${fmt(c.h)} ft walls]`:''}`);
+      if (k.cls === 'warn' || k.cls === 'bad') L.push(`    CODE FLAG: ${k.text}`);
+    });
+    if (S.blocks.length){
+      L.push(''); L.push('BLOCKED AREAS TO FILL');
+      S.blocks.forEach(b=> L.push(`- ${b.label || 'Unlabeled'}: ${fmt(num(b.qty||1))} @ ${fmt(num(b.w))}x${fmt(num(b.h))} (in x ft) = ${fmt(blockSqft(b))} sq ft`));
+    }
+    L.push(''); L.push('TOTALS');
+    Object.entries(byR).forEach(([r,v])=> L.push(`- ${r}: ${fmt(v.sq)} sq ft`));
+    if (blockTotal) L.push(`- Blocked areas: ${fmt(blockTotal)} sq ft`);
+    L.push(`- TOTAL: ${fmt(total)} sq ft`);
+    const notes = [...S.chips, ...(S.notes.trim() ? [S.notes.trim()] : [])];
+    if (notes.length){ L.push(''); L.push('SITE NOTES'); notes.forEach(n=>L.push(`- ${n}`)); }
+    return L.join('\n');
+  }
+
+  /* ---------- events ---------- */
+  function bindStatic(){
+    document.querySelectorAll('[data-job]').forEach(el=>{
+      el.value = S.job[el.dataset.job] || '';
+      el.addEventListener('input', ()=>{ S.job[el.dataset.job] = el.value; update(); });
+    });
+    $('zone').value = S.job.zone; $('code').value = S.job.code; $('ci').value = S.job.ci;
+    $('zone').addEventListener('change', e=>{ S.job.zone = e.target.value; update(); });
+    $('code').addEventListener('change', e=>{ S.job.code = e.target.value; update(); });
+    $('ci').addEventListener('change', e=>{ S.job.ci = e.target.value; update(); });
+    $('county').addEventListener('change', e=>{ setCounty(e.target.value); update(); });
+    $('gpsBtn').addEventListener('click', ()=>{
+      if (!('geolocation' in navigator)){ renderGps('Location isn’t available on this device. Type the address instead.'); return; }
+      $('gpsBtn').disabled = true; renderGps('Finding your location…');
+      navigator.geolocation.getCurrentPosition(pos=>{
+        $('gpsBtn').disabled = false;
+        const {latitude:lat, longitude:lon, accuracy} = pos.coords;
+        S.job.lat = lat.toFixed(6); S.job.lon = lon.toFixed(6);
+        const c = countyAt(lat, lon);
+        setCounty(c ? countyKey(c) : '');
+        if (!S.job.address){ S.job.address = `Near ${lat.toFixed(5)}, ${lon.toFixed(5)}`; $('address').value = S.job.address; }
+        renderGps();
+        $('gpsStatus').insertAdjacentHTML('beforeend', c
+          ? `<br>Detected ${esc(countyKey(c))}, climate zone ${c[2]}A${accuracy > 500 ? ' (low accuracy, double-check)' : ''}.`
+          : '<br>This spot is outside NC and SC, so code checks are off for this job.');
+        update();
+      }, err=>{
+        $('gpsBtn').disabled = false;
+        renderGps(err.code === 1 ? 'Location permission was denied. Allow location for this page or type the address.' : 'Couldn’t get a location fix. Try again outside, or type the address.');
+      }, {enableHighAccuracy:true, timeout:15000, maximumAge:60000});
+    });
+    $('gpsStatus').addEventListener('click', e=>{
+      if (e.target.id !== 'gpsClear') return;
+      S.job.lat = S.job.lon = ''; renderGps(); update();
+    });
+    document.querySelectorAll('[data-es]').forEach(b=>b.addEventListener('click', ()=>{ S.energyStar = b.dataset.es; renderEs(); update(); }));
+    $('esVer').addEventListener('change', e=>{ S.esVer = e.target.value; renderEs(); update(); });
+    $('mailTo').value = mailTo;
+    $('mailTo').addEventListener('input', e=>{ mailTo = e.target.value; store.set('fm-mailto', mailTo); update(); });
+    $('toEmail').addEventListener('click', ()=>{ $('mailTo').scrollIntoView({block:'center'}); $('mailTo').focus({preventScroll:true}); });
+    $('height').value = S.height; $('gap').value = S.gap;
+    $('height').addEventListener('input', e=>{ S.height = e.target.value; document.querySelectorAll('[data-f="h"]').forEach(i=>{ if(i.closest('.count')) i.placeholder = S.height; }); update(); });
+    $('gap').addEventListener('input', e=>{ S.gap = e.target.value; update(); });
+    document.querySelectorAll('[data-gap]').forEach(b=>b.addEventListener('click', ()=>{ S.gap = b.dataset.gap; $('gap').value = S.gap; update(); }));
+    $('notes').value = S.notes;
+    $('notes').addEventListener('input', e=>{ S.notes = e.target.value; update(); });
+
+    $('addLine').addEventListener('click', ()=>{ S.lines.push({id:nid(),area:'',r:'R15',type:'ext',count:'',h:''}); renderLines(); update(); focusLast('countRows'); });
+    document.querySelectorAll('[data-quick]').forEach(b=>b.addEventListener('click', ()=>{
+      const [area,r,type] = b.dataset.quick.split('|');
+      S.lines.push({id:nid(),area,r,type,count:'',h:''}); renderLines(); update(); focusLast('countRows','[data-f="count"]');
+    }));
+    const BLOCK_CHIP = 'Blocked areas to fill';
+    $('addBlock').addEventListener('click', ()=>{
+      S.blocks.push({id:nid(),label:'',w:'',h:'',qty:1});
+      if (!S.chips.includes(BLOCK_CHIP)){ S.chips.push(BLOCK_CHIP); renderChips(); }
+      renderBlocks(); update(); focusLast('blockRows');
+    });
+
+    ['countRows','blockRows'].forEach(cid=>{
+      const list = cid === 'countRows' ? () => S.lines : () => S.blocks;
+      $(cid).addEventListener('input', e=>{
+        const row = e.target.closest('.row'); if (!row || !e.target.dataset.f) return;
+        const item = list().find(x=>x.id===row.dataset.id); if (!item) return;
+        item[e.target.dataset.f] = e.target.value; update();
+      });
+      $(cid).addEventListener('click', e=>{
+        const b = e.target.closest('[data-rm]'); if (!b) return;
+        const id = b.closest('.row').dataset.id;
+        if (cid === 'countRows'){ S.lines = S.lines.filter(x=>x.id!==id); renderLines(); }
+        else {
+          S.blocks = S.blocks.filter(x=>x.id!==id); renderBlocks();
+          if (!S.blocks.length && S.chips.includes('Blocked areas to fill')){ S.chips = S.chips.filter(x=>x!=='Blocked areas to fill'); renderChips(); }
+        }
+        update();
+      });
+    });
+
+    $('noteChips').addEventListener('click', e=>{
+      const b = e.target.closest('[data-chip]'); if (!b) return;
+      const c = b.dataset.chip;
+      S.chips = S.chips.includes(c) ? S.chips.filter(x=>x!==c) : [...S.chips, c];
+      b.setAttribute('aria-pressed', String(S.chips.includes(c))); update();
+    });
+
+    const doCopy = async ()=>{
+      const text = $('summary').textContent;
+      try { await navigator.clipboard.writeText(text); toast('Copied to clipboard.'); }
+      catch(e){
+        const r = document.createRange(); r.selectNodeContents($('summary'));
+        const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+        toast('Text selected. Press Ctrl+C or Copy to finish.');
+      }
+    };
+    $('copy').addEventListener('click', doCopy);
+    $('print').addEventListener('click', ()=>window.print());
+
+    // Confirm before emailing when any counted area falls short of code
+    let bypass = false;
+    const closeModal = () => { $('codeModal').hidden = true; $('mailBtn').focus(); };
+    $('mailBtn').addEventListener('click', e=>{
+      if (bypass){ bypass = false; return; }
+      if ($('mailBtn').getAttribute('aria-disabled') === 'true'){ e.preventDefault(); return; }
+      const flagged = S.lines.filter(l=>num(l.count)).map(l=>({l, k:check(l)})).filter(x=>x.k.cls==='warn' || x.k.cls==='bad');
+      if (!flagged.length) return;
+      e.preventDefault();
+      $('cmIntro').textContent = `These areas don’t meet the Zone ${S.job.zone} minimum for ${effective().label} in ${S.job.county}:`;
+      $('cmList').innerHTML = flagged.map(x=>`<li><strong>${esc(x.l.area || 'Unnamed area')}</strong> (${esc(x.l.r)}, ${fmt(num(x.l.count))} gaps): ${esc(x.k.text)}</li>`).join('');
+      $('codeModal').hidden = false; $('cmBack').focus();
+    });
+    $('cmBack').addEventListener('click', closeModal);
+    $('cmSend').addEventListener('click', ()=>{ $('codeModal').hidden = true; bypass = true; $('mailBtn').click(); });
+    $('codeModal').addEventListener('click', e=>{ if (e.target.id === 'codeModal') closeModal(); });
+    document.addEventListener('keydown', e=>{ if (e.key === 'Escape' && !$('codeModal').hidden) closeModal(); });
+    $('newJob').addEventListener('click', ()=>{
+      if (!confirm('Clear this job and start a new one? Your email address stays.')) return;
+      const keep = {height:S.height, gap:S.gap, code:S.job.code, measuredBy:S.job.measuredBy};
+      S = blankJob(); S.height = keep.height; S.gap = keep.gap; S.job.code = keep.code; S.job.measuredBy = keep.measuredBy;
+      save(); location.reload();
+    });
+  }
+  function focusLast(cid, sel){ const rows = $(cid).querySelectorAll('.row'); const r = rows[rows.length-1]; r && r.querySelector(sel || 'input').focus(); }
+  let tt; function toast(m){ const t=$('toast'); t.textContent=m; t.classList.add('show'); clearTimeout(tt); tt=setTimeout(()=>t.classList.remove('show'),2200); }
+
+  renderCountyOptions(); renderLines(); renderBlocks(); renderChips();
+  bindStatic(); renderEs(); renderGps(); update();
+})();
+</script>
+</body>
+</html>
